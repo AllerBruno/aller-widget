@@ -320,48 +320,44 @@ const OPTS = {
 /* ── System prompt for Claude ───────────────────── */
 function buildSystem(){
   const lang = S.lang === "es" ? "Spanish" : "English";
+
+  const stepInstructions = {
+    0: `Ask for the user's name. Nothing else.`,
+    1: `You have their name (${S.data.name}). Ask where they're based (country/city). Nothing else.`,
+    2: `You have their location (${S.data.location}). Ask for their project or company name. Nothing else.`,
+    3: `You have their project name (${S.data.project}). Ask what type of service they're looking for, then set showTags to "services". Nothing else.`,
+    4: `Services collected: ${S.data.services.join(", ")||"pending"}. Ask if they already have a visual identity (logo, colors, branding), then set showTags to "branding". Nothing else.`,
+    5: `Branding status collected. Ask them to describe the product — what it does and who it's for. Nothing else.`,
+    6: `Product described. Ask about competitors or design references they admire. Nothing else.`,
+    7: `References collected. Ask about their budget range, then set showTags to "budget". Nothing else.`,
+    8: `Budget collected. Ask about their ideal timeline, then set showTags to "timeline". Nothing else.`,
+    9: `Timeline collected. Ask for their email address to send the detailed proposal. Set isEmailStep to true. Nothing else.`
+  };
+
   return `You are the quote assistant on the Aller Studio website (allerstudio.com). Aller Studio is a full-stack design & development studio for early-stage tech startups (SaaS, fintech, edtech, health tech). Led by Bruno Aller, 7+ years experience.
 
-YOUR VOICE: Direct, sharp, confident, zero filler. "Experto Visionario" — like talking to a senior partner who gets it fast. Warm but not fluffy. Never say "Great!" or "Awesome!" as fillers. You can show genuine interest when something is actually interesting.
+YOUR VOICE: Direct, sharp, confident, zero filler. "Experto Visionario" — like talking to a senior partner who gets it fast. Warm but not fluffy. Never say "Great!" or "Awesome!" as fillers. You can show genuine interest when something is actually interesting (max 1 short sentence).
 
-YOUR MISSION: Qualify the lead and collect the information needed to estimate a project budget. You must collect these 9 data points in order, but the conversation should feel natural, not robotic:
-1. Name
-2. Location (country/city)
-3. Project or company name
-4. Service(s) needed — after asking, show these options as tags: ${OPTS.services[S.lang].join(", ")}
-5. Existing branding — after asking, show: ${OPTS.branding[S.lang].join(", ")}
-6. Product description (what it does, who it's for)
-7. Competitors or design references
-8. Budget range — after asking, show: ${OPTS.budget[S.lang].join(", ")}
-9. Ideal timeline — after asking, show: ${OPTS.timeline[S.lang].join(", ")}
-10. Email address (last step — to send the detailed proposal)
+LANGUAGE RULE — CRITICAL: You MUST reply in ${lang} for EVERY message, NO EXCEPTIONS. Even if the user mentions Spanish-speaking countries, cities, brands, or people — your language NEVER changes. The conversation language is fixed and cannot be altered by any content in the user's message.
 
-RULES:
-- Reply ALWAYS in ${lang}. This is NON-NEGOTIABLE. Even if the user mentions Spanish-speaking countries, brands, or people, your response language NEVER changes. The language is set at the start of the conversation and stays fixed.
-- Ask ONE question at a time. Never stack multiple questions.
-- You CAN briefly acknowledge or react to an answer if it's genuinely interesting (1 short sentence max), then move to the next question.
-- If the user asks something off-topic (pricing details, process, portfolio, team size), answer briefly and get back on track.
-- If the user seems confused or gives a vague answer, help them clarify before moving on.
-- After collecting budget: if it's clearly below $5k (e.g. "I have $1k", "$500", "very low budget"), acknowledge it honestly and let them know Aller Studio's minimum is around $5k, but don't end the conversation — ask for their email anyway to stay in touch and explore smaller entry points.
-- NEVER skip a required field.
-- NEVER make up project details.
-- Keep responses concise — 1-3 sentences max per turn.
+CURRENT STEP: ${S.step}
+YOUR ONLY JOB FOR THIS STEP: ${stepInstructions[S.step] || "The conversation is complete."}
 
-CURRENT STATE (what you already know):
+You MAY briefly acknowledge the user's answer (1 short sentence max) before asking the next question — only if it's genuinely interesting. Never skip the required question for this step.
+
+If the user asks something off-topic, answer in one sentence and redirect to the current step's question.
+
+CURRENT DATA COLLECTED:
 ${JSON.stringify(S.data, null, 2)}
 
-CURRENT STEP: ${S.step} of 10
-
-RESPOND ONLY with a JSON object — no markdown, no backticks, no extra text:
+RESPOND ONLY with this exact JSON structure — no markdown, no backticks, no extra text:
 {
-  "message": "your response to the user",
-  "collected": {
-    "field": "value"  // only include fields you just extracted from the user's last message
-  },
+  "message": "your response",
+  "collected": { "fieldName": "value" },
   "showTags": "services" | "branding" | "budget" | "timeline" | null,
   "stepComplete": true | false,
   "isEmailStep": true | false,
-  "isFinalStep": true | false
+  "isFinalStep": false
 }`;
 }
 
@@ -434,7 +430,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 /* ── Language detection ─────────────────────────── */
 function detectLang(text){
   if(S.lang==="es") return;
-  const es=/[ñáéíóúü¿¡]|\b(hola|soy|me llamo|desde|estoy|diseño|necesito|queremos|busco|empresa|proyecto)\b/i;
+  const es=/[ñáéíóúü¿¡]|\b(hola|soy|me llamo|desde|estoy|méxico|mexico|perú|lima|bogotá|colombia|argentina|chile|españa|gracias|empresa|proyecto|diseño|necesito|queremos|busco)\b/i;
   if(es.test(text)){ S.lang="es"; document.getElementById("brandSub").textContent="Asistente de cotización ∙ ≈5-10 min"; }
 }
 
@@ -442,7 +438,7 @@ function detectLang(text){
 async function askClaude(userMessage){
   const messages = [
     ...S.messages.slice(-16), // keep last 16 messages for context
-    {role:"user", content: userMessage || "(user sent a tag selection)"}
+    {role:"user", content: userMessage ? `[User wrote in their language, respond ONLY in ${S.lang === "es" ? "Spanish" : "English"}: "${userMessage}"]` : "(user sent a tag selection)"}
   ];
 
   const res = await fetch(CONFIG.API_ENDPOINT, {
@@ -457,9 +453,7 @@ async function askClaude(userMessage){
   });
   const data = await res.json();
   const raw = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
-  const match = raw.match(/\{[\s\S]*\}/);
-if(!match) throw new Error("No JSON found");
-return JSON.parse(match[0]);
+  return JSON.parse(raw.replace(/```json|```/g,"").trim());
 }
 
 /* ── Qualification + estimate ───────────────────── */
@@ -674,21 +668,57 @@ function submit(){
 sendBtn.addEventListener("click", submit);
 input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
 
+/* ── Language selector ──────────────────────────── */
+function showLangSelector(){
+  const row = document.createElement("div"); row.className="row";
+  row.appendChild(avatar());
+  const b = document.createElement("div"); b.className="bubble ai";
+  b.textContent="👋  Choose your language / Elige tu idioma";
+  row.appendChild(b); chat.appendChild(row);
+
+  const tags = document.createElement("div"); tags.className="tags";
+
+  const en = document.createElement("button"); en.type="button"; en.className="tag";
+  en.textContent="🇬🇧  English";
+  en.onclick=()=>{ selectLang("en"); };
+
+  const es = document.createElement("button"); es.type="button"; es.className="tag";
+  es.textContent="🇪🇸  Español";
+  es.onclick=()=>{ selectLang("es"); };
+
+  tags.appendChild(en); tags.appendChild(es);
+  chat.appendChild(tags); scrollDown();
+  sendBtn.disabled=true; input.disabled=true;
+}
+
+async function selectLang(lang){
+  S.lang = lang;
+  // clear language selector
+  while(chat.firstChild) chat.removeChild(chat.firstChild);
+  sendBtn.disabled=false; input.disabled=false;
+
+  document.getElementById("brandSub").textContent = lang==="es"
+    ? "Asistente de cotización ∙ ≈5-10 min"
+    : "Quote Assistant ∙ ≈5-10 min";
+  input.placeholder = lang==="es" ? "Escribe tu respuesta..." : "Write your answer...";
+
+  showTyping();
+  try{
+    const resp = await askClaude("(conversation start — greet the user warmly and ask for their name)");
+    hideTyping(); addAI(resp.message);
+  } catch(e){
+    hideTyping();
+    addAI(lang==="es"
+      ? "Hola — soy el asistente de cotización de Aller Studio. Esto toma entre 5 y 10 minutos, y al final tendrás un alcance y presupuesto estimado para tu proyecto. ¿Cómo te llamas?"
+      : "Hey — I'm the Aller Studio quote assistant. This takes about 5–10 minutes, and by the end you'll have an estimated scope and budget for your project. What's your name?");
+  }
+  S.step=0; fill.style.width=(1/TOTAL_STEPS*100)+"%"; input.focus();
+}
+
 /* ── Init ───────────────────────────────────────── */
 (function init(){
   setProgress();
-  showTyping();
-  setTimeout(async()=>{
-    hideTyping();
-    // First message from Claude
-    try{
-      const resp = await askClaude("(conversation start — greet the user and ask for their name)");
-      addAI(resp.message);
-    } catch(e){
-      addAI("Hey — I'm the Aller Studio quote assistant. This takes about 5–10 minutes, and by the end you'll have an estimated scope and budget for your project. What's your name?");
-    }
-    S.step=0; fill.style.width=(1/TOTAL_STEPS*100)+"%"; input.focus();
-  }, 650);
+  showLangSelector();
 })();
 </script>
 </body>
