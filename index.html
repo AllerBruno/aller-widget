@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aller Studio — Quote Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --lime:#D5FE00;
+    --dark:#121212;
+    --body:#70808F;
+    --n200:#F2F4F5;
+    --n300:#DADEE2;
+    --track:#D6D6D6;
+    --btn:#21262B;
+    --btn-border:#191C20;
+    --bubble-grad:linear-gradient(90deg,#DADEE2 0%,#F2F4F5 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Inter',Helvetica,Arial,sans-serif;
+    background:transparent;
+    display:flex;align-items:center;justify-content:center;
+    padding:0;
+  }
+
+  /* ── Widget shell ─────────────────────────────── */
+  .widget{
+    position:relative;
+    width:100%;max-width:1000px;height:700px;
+    background:rgba(249,250,251,.96);
+    backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+    border:1px solid #fff;border-radius:20px;
+    overflow:hidden;
+    display:flex;flex-direction:column;
+  }
+
+  /* progress bar */
+  .progress{position:absolute;top:0;left:0;right:0;height:8px;background:var(--track);z-index:5}
+  .progress .fill{height:100%;width:0;background:var(--lime);transition:width .4s ease}
+
+  /* header */
+  .header{
+    flex:0 0 116px;
+    display:flex;align-items:center;gap:16px;
+    padding:0 31px;padding-top:8px;
+    border-bottom:1px solid var(--n300);
+    position:relative;
+  }
+  .brand-name{font-family:'Rajdhani',Arial,sans-serif;font-weight:700;font-size:24px;line-height:24px;color:#000;letter-spacing:.5px}
+  .brand-sub{font-size:12px;line-height:18px;color:var(--body);margin-top:6px}
+
+  /* logo */
+  .logo{
+    position:relative;flex:0 0 auto;
+    background:radial-gradient(140% 140% at 0% 0%,#FFFFFF 0%,#F5FFBF 25%,#EAFF80 50%,#E0FE40 75%,#D5FE00 100%);
+    border-radius:24%;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 1px 1px 2px rgba(255,255,255,.7),inset -1px -2px 3px rgba(18,18,18,.18),0 1px 2px rgba(18,18,18,.18);
+  }
+  .logo .bar{
+    width:48%;height:21%;background:var(--dark);border-radius:999px;
+    box-shadow:inset .6px .6px .6px rgba(255,255,255,.4),inset -.6px -.6px .6px rgba(18,18,18,.35),
+               .4px .6px .6px rgba(18,18,18,.25);
+  }
+  .logo.lg{width:64px;height:64px}
+  .logo.sm{width:32px;height:32px}
+
+  /* vertical grid lines */
+  .vline{
+    position:absolute;top:0;bottom:0;
+    width:1px;background:var(--n300);
+    z-index:3;pointer-events:none;
+  }
+
+  /* corner dot clusters */
+  .dots{position:absolute;width:14px;height:14px;z-index:4;pointer-events:none}
+  .dots i{position:absolute;width:3px;height:3px;background:var(--n300)}
+  .dots i:nth-child(1){top:0;left:0}.dots i:nth-child(2){top:0;right:0}
+  .dots i:nth-child(3){bottom:0;left:0}.dots i:nth-child(4){bottom:0;right:0}
+
+  /* ── Chat area ────────────────────────────────── */
+  .chat{
+    flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
+    padding:38px 39px 24px;
+    display:flex;flex-direction:column;gap:24px;
+    scroll-behavior:smooth;
+  }
+  .chat::-webkit-scrollbar{width:6px}
+  .chat::-webkit-scrollbar-thumb{background:var(--n300);border-radius:3px}
+
+  .row{display:flex;gap:11px;align-items:flex-start;animation:rise .35s ease both}
+  .row.user{justify-content:flex-end}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.row{animation:none}.progress .fill{transition:none}}
+
+  .bubble{
+    border:1px solid #fff;padding:20px;
+    font-size:14px;line-height:20px;font-weight:500;
+    max-width:72%;
+    word-break:break-word;
+  }
+  .bubble.ai{
+    background:var(--bubble-grad);
+    color:var(--body);
+    border-radius:4px 16px 16px 16px;
+  }
+  .bubble.user{
+    background:var(--lime);
+    color:var(--dark);
+    border-radius:16px 4px 16px 16px;
+    text-align:right;
+  }
+
+  /* typing indicator */
+  .typing{display:inline-flex;gap:5px;align-items:center;height:20px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--body);opacity:.4;animation:blink 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}
+  .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:.9}}
+
+  /* quick-reply tags */
+  .tags{display:flex;flex-wrap:wrap;gap:8px;margin-left:43px;animation:rise .35s ease both}
+  .tag{
+    border:1px solid #fff;border-radius:16px;padding:8px;
+    font-family:'Inter',sans-serif;font-size:12px;line-height:16px;font-weight:500;color:var(--dark);
+    background:var(--bubble-grad);
+    cursor:pointer;transition:transform .12s ease,background .12s ease;
+    user-select:none;
+  }
+  .tag:hover{transform:translateY(-1px)}
+  .tag:focus-visible{outline:2px solid var(--dark);outline-offset:2px}
+  .tag.selected{background:var(--lime)}
+  .tag.confirm{background:var(--dark);color:var(--lime)}
+
+  /* ── Project brief card ───────────────────────── */
+  .brief{
+    width:100%;border:1px solid #fff;border-radius:16px;
+    background:var(--bubble-grad);
+    padding:16px;
+    display:flex;flex-direction:column;gap:20px;
+    animation:rise .4s ease both;
+  }
+  .brief h3{font-family:'Rajdhani',Arial,sans-serif;font-weight:700;font-size:24px;line-height:24px;color:#000}
+  .brief .rows{display:flex;flex-direction:column;gap:16px}
+  .brief .r{
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+    padding-bottom:8px;border-bottom:1px solid #fff;
+    font-size:14px;line-height:20px;
+  }
+  .brief .r .k{color:var(--body);font-weight:500}
+  .brief .r .v{color:var(--dark);font-weight:600;text-align:right}
+  .brief .verdict{display:flex;flex-direction:column;gap:13px;align-items:flex-start}
+  .badge{
+    border:1px solid #fff;border-radius:16px;padding:8px;
+    font-size:12px;line-height:16px;font-weight:500;color:var(--dark);
+    background:var(--lime);
+  }
+  .badge.no{background:var(--bubble-grad)}
+  .price{font-family:'Rajdhani',Arial,sans-serif;font-weight:700;font-size:32px;line-height:32px;color:#000}
+
+  .cta{
+    align-self:flex-start;
+    display:inline-flex;align-items:center;gap:10px;
+    background:var(--btn);color:var(--lime);
+    border:2px solid var(--btn-border);border-radius:16px;
+    padding:14px 22px;font-family:'Rajdhani',Arial,sans-serif;font-weight:700;font-size:16px;letter-spacing:.5px;
+    text-decoration:none;cursor:pointer;transition:transform .12s ease;
+  }
+  .cta:hover{transform:translateY(-1px)}
+
+  /* Cal.com inline embed card */
+  .cal-card{
+    width:100%;border:1px solid #fff;border-radius:16px;
+    background:#fff;overflow:hidden;
+    animation:rise .4s ease both;
+  }
+  .cal-card .cal-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 16px;background:var(--bubble-grad);border-bottom:1px solid #fff;
+  }
+  .cal-card .cal-head h4{font-family:'Rajdhani',Arial,sans-serif;font-weight:700;font-size:18px;color:#000}
+  .cal-card .cal-head a{font-size:12px;font-weight:500;color:var(--body);text-decoration:none}
+  .cal-card .cal-head a:hover{color:var(--dark)}
+  .cal-body{height:520px;width:100%;overflow-y:auto;overscroll-behavior:contain}
+  .cal-body::-webkit-scrollbar{width:6px}
+  .cal-body::-webkit-scrollbar-thumb{background:var(--n300);border-radius:3px}
+  @media (max-width:640px){ .cal-body{height:560px} }
+
+  /* ── Input bar ────────────────────────────────── */
+  .inputbar{
+    flex:0 0 auto;
+    display:flex;gap:8px;align-items:flex-end;
+    padding:18px 39px 23px;
+    border-top:1px solid var(--n300);
+    position:relative;
+  }
+  .field{
+    flex:1;height:64px;
+    background:var(--bubble-grad);
+    border:1px solid #fff;border-radius:16px;
+    display:flex;align-items:center;overflow:hidden;
+  }
+  .field input{
+    width:100%;height:100%;background:transparent;border:none;outline:none;
+    padding:0 19px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;color:var(--dark);
+  }
+  .field input::placeholder{color:var(--body)}
+  .send{
+    flex:0 0 64px;height:64px;
+    background:var(--btn);border:2px solid var(--btn-border);border-radius:16px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:transform .12s ease,opacity .12s ease;
+  }
+  .send:hover{transform:translateY(-1px)}
+  .send:disabled{opacity:.5;cursor:default;transform:none}
+  .send svg{width:24px;height:24px}
+
+  /* mobile */
+  @media (max-width:640px){
+    .widget{height:100dvh;max-height:720px;border-radius:16px}
+    .header{flex-basis:92px;padding:8px 20px 0}
+    .logo.lg{width:48px;height:48px}
+    .brand-name{font-size:20px}
+    .chat{padding:24px 18px 16px}
+    .bubble{max-width:84%;padding:14px}
+    .tags{margin-left:0}
+    .inputbar{padding:12px 18px 16px}
+    .field,.send{height:54px}
+    .send{flex-basis:54px}
+  }
+</style>
+</head>
+<body>
+
+<div class="widget" id="widget">
+  <div class="progress"><div class="fill" id="progressFill"></div></div>
+
+  <!-- vertical grid lines -->
+  <div class="vline" style="left:23px"></div>
+  <div class="vline" style="right:23px"></div>
+
+  <div class="header">
+    <div class="logo lg"><span class="bar"></span></div>
+    <div>
+      <div class="brand-name">ALLER STUDIO</div>
+      <div class="brand-sub" id="brandSub">Quote Assistant ∙ ≈5-10 min</div>
+    </div>
+    <span class="dots" style="left:16px;bottom:-8px"><i></i><i></i><i></i><i></i></span>
+    <span class="dots" style="right:16px;bottom:-8px"><i></i><i></i><i></i><i></i></span>
+  </div>
+
+  <div class="chat" id="chat" aria-live="polite"></div>
+
+  <div class="inputbar">
+    <span class="dots" style="left:16px;top:-8px"><i></i><i></i><i></i><i></i></span>
+    <span class="dots" style="right:16px;top:-8px"><i></i><i></i><i></i><i></i></span>
+    <div class="field">
+      <input id="input" type="text" autocomplete="off" placeholder="Write your answer..." aria-label="Your answer">
+    </div>
+    <button class="send" id="sendBtn" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 18L18 6M18 6H9M18 6V15" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   ALLER STUDIO — QUOTE ASSISTANT (AI-powered)
+   ─────────────────────────────────────────────────────────────
+   API_ENDPOINT → your Render proxy URL
+   CAL_LINK     → your Cal.com link slug
+   WEBHOOK_URL  → Make/Zapier webhook for lead capture (optional)
+   ════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  API_ENDPOINT: "https://aller-proxy.onrender.com/chat",
+  CAL_LINK    : "bruno-aller-i8z4lj/30min",
+  WEBHOOK_URL : ""
+};
+const CAL_URL = "https://cal.com/" + CONFIG.CAL_LINK;
+
+/* ── Pricing logic (USD) ────────────────────────── */
+const PRICE = {
+  "ux/ui":[7000,10000], "branding":[5000,8000],
+  "web development":[5000,9000], "desarrollo web":[5000,9000],
+  "game ux/ui / huds":[7000,10000], "pitch deck":[2000,4000],
+  "full 360":[18000,35000]
+};
+const BUDGET_RANGE = [ [4000,4000],[5000,10000],[10000,20000],[20000,50000],[50000,100000],[100000,200000] ];
+
+/* ── State ──────────────────────────────────────── */
+const S = {
+  lang: "en",
+  step: 0,
+  data: { name:"", location:"", project:"", services:[], branding:"", brandingIdx:-1, product:"", competitors:"", budgetIdx:-1, budgetText:"", timeline:"", email:"" },
+  messages: [],   // full conversation history for Claude
+  multiSel: new Set(),
+  busy: false
+};
+const TOTAL_STEPS = 11;
+
+/* ── Service & budget options (bilingual) ───────── */
+const OPTS = {
+  services: { en:["UX/UI","Branding","Web Development","Game UX/UI / HUDS","Pitch Deck","Full 360"],
+               es:["UX/UI","Branding","Desarrollo Web","Game UX/UI / HUDS","Pitch Deck","Full 360"] },
+  branding:  { en:["Starting from scratch","Logo only","Full branding ready"],
+               es:["Desde cero","Solo logo","Branding completo listo"] },
+  budget:    { en:["Monthly Retainer $4k","$5k–$10k","$10k–$20k","$20k–$50k","$50k–$100k","+$100k"],
+               es:["Retainer mensual $4k","$5k–$10k","$10k–$20k","$20k–$50k","$50k–$100k","+$100k"] },
+  timeline:  { en:["ASAP (<4 weeks)","Normal (1-3 months)","Flexible (3+ months)"],
+               es:["ASAP (<4 semanas)","Normal (1-3 meses)","Flexible (3+ meses)"] }
+};
+
+/* ── System prompt for Claude ───────────────────── */
+function buildSystem(){
+  const lang = S.lang === "es" ? "Spanish" : "English";
+  return `You are the quote assistant on the Aller Studio website (allerstudio.com). Aller Studio is a full-stack design & development studio for early-stage tech startups (SaaS, fintech, edtech, health tech). Led by Bruno Aller, 7+ years experience.
+
+YOUR VOICE: Direct, sharp, confident, zero filler. "Experto Visionario" — like talking to a senior partner who gets it fast. Warm but not fluffy. Never say "Great!" or "Awesome!" as fillers. You can show genuine interest when something is actually interesting.
+
+YOUR MISSION: Qualify the lead and collect the information needed to estimate a project budget. You must collect these 9 data points in order, but the conversation should feel natural, not robotic:
+1. Name
+2. Location (country/city)
+3. Project or company name
+4. Service(s) needed — after asking, show these options as tags: ${OPTS.services[S.lang].join(", ")}
+5. Existing branding — after asking, show: ${OPTS.branding[S.lang].join(", ")}
+6. Product description (what it does, who it's for)
+7. Competitors or design references
+8. Budget range — after asking, show: ${OPTS.budget[S.lang].join(", ")}
+9. Ideal timeline — after asking, show: ${OPTS.timeline[S.lang].join(", ")}
+10. Email address (last step — to send the detailed proposal)
+
+RULES:
+- Reply ALWAYS in ${lang}
+- Ask ONE question at a time. Never stack multiple questions.
+- You CAN briefly acknowledge or react to an answer if it's genuinely interesting (1 short sentence max), then move to the next question.
+- If the user asks something off-topic (pricing details, process, portfolio, team size), answer briefly and get back on track.
+- If the user seems confused or gives a vague answer, help them clarify before moving on.
+- After collecting budget: if it's clearly below $5k (e.g. "I have $1k", "$500", "very low budget"), acknowledge it honestly and let them know Aller Studio's minimum is around $5k, but don't end the conversation — ask for their email anyway to stay in touch and explore smaller entry points.
+- NEVER skip a required field.
+- NEVER make up project details.
+- Keep responses concise — 1-3 sentences max per turn.
+
+CURRENT STATE (what you already know):
+${JSON.stringify(S.data, null, 2)}
+
+CURRENT STEP: ${S.step} of 10
+
+RESPOND ONLY with a JSON object — no markdown, no backticks, no extra text:
+{
+  "message": "your response to the user",
+  "collected": {
+    "field": "value"  // only include fields you just extracted from the user's last message
+  },
+  "showTags": "services" | "branding" | "budget" | "timeline" | null,
+  "stepComplete": true | false,
+  "isEmailStep": true | false,
+  "isFinalStep": true | false
+}`;
+}
+
+/* ── UI Elements ────────────────────────────────── */
+const chat    = document.getElementById("chat");
+const input   = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
+const fill    = document.getElementById("progressFill");
+
+/* ── UI Helpers ─────────────────────────────────── */
+function avatar(){ const d=document.createElement("div"); d.className="logo sm"; d.innerHTML='<span class="bar"></span>'; return d; }
+
+function addAI(text){
+  const row=document.createElement("div"); row.className="row";
+  row.appendChild(avatar());
+  const b=document.createElement("div"); b.className="bubble ai";
+  b.innerHTML=text.replace(/\n/g,"<br>");
+  row.appendChild(b); chat.appendChild(row); scrollDown();
+  S.messages.push({role:"assistant", content:text});
+}
+
+function addUser(text){
+  const row=document.createElement("div"); row.className="row user";
+  const b=document.createElement("div"); b.className="bubble user"; b.textContent=text;
+  row.appendChild(b); chat.appendChild(row); scrollDown();
+  S.messages.push({role:"user", content:text});
+}
+
+let typingRow=null;
+function showTyping(){
+  typingRow=document.createElement("div"); typingRow.className="row";
+  typingRow.appendChild(avatar());
+  const b=document.createElement("div"); b.className="bubble ai";
+  b.innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
+  typingRow.appendChild(b); chat.appendChild(typingRow); scrollDown();
+}
+function hideTyping(){ if(typingRow){typingRow.remove();typingRow=null;} }
+
+let tagWrap=null;
+function showTags(type, multi=false, onPick){
+  clearTags();
+  const options = OPTS[type][S.lang] || OPTS[type]["en"];
+  tagWrap=document.createElement("div"); tagWrap.className="tags";
+  options.forEach(label=>{
+    const el=document.createElement("button"); el.type="button"; el.className="tag"; el.textContent=label;
+    el.onclick=()=>{
+      if(multi){
+        el.classList.toggle("selected");
+        S.multiSel.has(label)?S.multiSel.delete(label):S.multiSel.add(label);
+      } else { onPick(label); }
+    };
+    tagWrap.appendChild(el);
+  });
+  if(multi){
+    const ok=document.createElement("button"); ok.type="button"; ok.className="tag confirm";
+    ok.textContent = S.lang==="es" ? "Confirmar selección →" : "Confirm selection →";
+    ok.onclick=()=>{ if(S.multiSel.size) onPick([...S.multiSel]); };
+    tagWrap.appendChild(ok);
+  }
+  chat.appendChild(tagWrap); scrollDown();
+  input.placeholder = multi
+    ? (S.lang==="es" ? "Selecciona opciones y presiona enviar →" : "Tap options, then press send →")
+    : (S.lang==="es" ? "Toca una opción o escribe tu respuesta..." : "Tap an option or type your answer...");
+}
+function clearTags(){ if(tagWrap){tagWrap.remove();tagWrap=null;} S.multiSel.clear(); input.placeholder=S.lang==="es"?"Escribe tu respuesta...":"Write your answer..."; }
+function scrollDown(){ requestAnimationFrame(()=>{ chat.scrollTop=chat.scrollHeight; }); }
+function setProgress(){ fill.style.width=Math.min(100,(S.step/TOTAL_STEPS)*100)+"%"; }
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ── Language detection ─────────────────────────── */
+function detectLang(text){
+  if(S.lang==="es") return;
+  const es=/[ñáéíóúü¿¡]|\b(hola|soy|me llamo|desde|estoy|méxico|mexico|perú|lima|bogotá|colombia|argentina|chile|españa|gracias|empresa|proyecto|diseño|necesito|queremos|busco)\b/i;
+  if(es.test(text)){ S.lang="es"; document.getElementById("brandSub").textContent="Asistente de cotización ∙ ≈5-10 min"; }
+}
+
+/* ── Claude API call ────────────────────────────── */
+async function askClaude(userMessage){
+  const messages = [
+    ...S.messages.slice(-16), // keep last 16 messages for context
+    {role:"user", content: userMessage || "(user sent a tag selection)"}
+  ];
+
+  const res = await fetch(CONFIG.API_ENDPOINT, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: buildSystem(),
+      messages
+    })
+  });
+  const data = await res.json();
+  const raw = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
+  return JSON.parse(raw.replace(/```json|```/g,"").trim());
+}
+
+/* ── Qualification + estimate ───────────────────── */
+function parseBudgetFree(text){
+  const m=text.replace(/[, ]/g,"").match(/\$?(\d+(?:\.\d+)?)(k)?/i);
+  if(!m) return null;
+  let v=parseFloat(m[1]); if(m[2]) v*=1000;
+  return v;
+}
+function isMatch(){
+  if(S.data.budgetIdx>=0) return true;
+  const v=parseBudgetFree(S.data.budgetText||"");
+  return v===null ? true : v>=5000;
+}
+function detectVertical(){
+  const txt=(S.data.product+" "+S.data.competitors).toLowerCase();
+  const map=[["fintech","Fintech"],["finance","Fintech"],["bank","Fintech"],["payment","Fintech"],["pago","Fintech"],
+    ["saas","SaaS"],["software","SaaS"],["web3","Web3"],["crypto","Web3"],["blockchain","Web3"],
+    ["health","Health Tech"],["salud","Health Tech"],["edtech","Edtech"],["educa","Edtech"],
+    ["e-commerce","E-commerce"],["ecommerce","E-commerce"],["tienda","E-commerce"],
+    ["game","Gaming"],["juego","Gaming"]];
+  for(const [k,v] of map) if(txt.includes(k)) return v;
+  return S.lang==="es" ? "Startup tech" : "Tech startup";
+}
+function estimate(){
+  const full=S.data.services.some(s=>/full 360/i.test(s));
+  let lo=0,hi=0;
+  if(full){ [lo,hi]=PRICE["full 360"]; }
+  else{
+    S.data.services.forEach(s=>{
+      const r=PRICE[s.toLowerCase()]||[4000,8000]; lo+=r[0]; hi+=r[1];
+    });
+    if(!S.data.services.length){ lo=5000; hi=12000; }
+  }
+  if(S.data.budgetIdx>0){
+    const [blo,bhi]=BUDGET_RANGE[S.data.budgetIdx];
+    const nlo=Math.max(lo,blo),nhi=Math.min(hi,bhi);
+    if(nlo<nhi){ lo=nlo; hi=nhi; }
+  }
+  const round=v=>Math.round(v/500)*500;
+  return `$${round(lo).toLocaleString("en-US")} – $${round(hi).toLocaleString("en-US")} USD`;
+}
+
+/* ── Brief card ─────────────────────────────────── */
+function renderBrief(){
+  const match=isMatch();
+  const L = S.lang==="es";
+  const brandingLabels = OPTS.branding[S.lang];
+  const budgetLabels = OPTS.budget[S.lang];
+  const serviceStr = S.data.services.join(" + ")||"—";
+  const budgetStr = S.data.budgetIdx>=0 ? budgetLabels[S.data.budgetIdx] : (S.data.budgetText||"—");
+  const brandingStr = S.data.brandingIdx>=0 ? brandingLabels[S.data.brandingIdx] : (S.data.branding||"—");
+
+  const card=document.createElement("div"); card.className="brief";
+  const rows=[
+    [L?"Contacto":"Partner", S.data.name],
+    [L?"Ubicación":"Location", S.data.location],
+    [L?"Proyecto":"Project", S.data.project],
+    ["Vertical", detectVertical()],
+    [L?"Servicio":"Service", serviceStr],
+    [L?"Branding existente":"Existing branding", brandingStr],
+    [L?"Presupuesto":"Budget", budgetStr],
+    ["Timeline", S.data.timeline]
+  ];
+  card.innerHTML=`<h3>${L?"Brief del proyecto":"Project brief"}</h3>
+    <div class="rows">${rows.map(([k,v])=>`<div class="r"><span class="k">${k}</span><span class="v">${v||"—"}</span></div>`).join("")}</div>
+    <div class="verdict">
+      <span class="badge ${match?"":"no"}">${match?(L?"Match — Gran fit para Aller Studio":"Match — Great fit for Aller Studio"):(L?"No es fit por ahora — pero sigamos en contacto":"Not a fit right now — but let's stay in touch")}</span>
+      ${match?`<div class="price">${estimate()}</div>`:""}
+    </div>`;
+  chat.appendChild(card); scrollDown();
+}
+
+/* ── Lead capture ───────────────────────────────── */
+function sendLead(){
+  if(!CONFIG.WEBHOOK_URL) return;
+  const payload={...S.data, vertical:detectVertical(), match:isMatch(), estimate:isMatch()?estimate():null,
+    lang:S.lang, source:"allerstudio.com quote widget", ts:new Date().toISOString()};
+  fetch(CONFIG.WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{});
+}
+
+/* ── Cal.com embed ──────────────────────────────── */
+function renderCal(){
+  const L=S.lang==="es";
+  const card=document.createElement("div"); card.className="cal-card";
+  card.innerHTML=`
+    <div class="cal-head">
+      <h4>${L?"ELIGE TU HORARIO":"PICK YOUR TIME"}</h4>
+      <a href="${CAL_URL}" target="_blank" rel="noopener">${L?"Abrir en pestaña nueva ↗":"Open in new tab ↗"}</a>
+    </div>
+    <div class="cal-body" id="cal-inline"></div>`;
+  chat.appendChild(card); scrollDown();
+  try{
+    (function(C,A,L){let p=function(a,ar){a.q.push(ar)};let d=C.document;C.Cal=C.Cal||function(){let cal=C.Cal;let ar=arguments;if(!cal.loaded){cal.ns={};cal.q=cal.q||[];d.head.appendChild(d.createElement("script")).src=A;cal.loaded=true}if(ar[0]===L){const api=function(){p(api,arguments)};const namespace=ar[1];api.q=api.q||[];if(typeof namespace==="string"){cal.ns[namespace]=cal.ns[namespace]||api;p(cal.ns[namespace],ar);p(cal,["initNamespace",namespace])}else p(cal,ar);return}p(cal,ar)}})(window,"https://app.cal.com/embed/embed.js","init");
+    Cal("init","30min",{origin:"https://app.cal.com"});
+    Cal.ns["30min"]("inline",{elementOrSelector:"#cal-inline",calLink:CONFIG.CAL_LINK,config:{layout:"month_view",name:S.data.name||"",email:S.data.email||""}});
+    Cal.ns["30min"]("ui",{hideEventTypeDetails:false,layout:"month_view"});
+    const keep=setInterval(()=>{chat.scrollTop=chat.scrollHeight;},400);
+    setTimeout(()=>clearInterval(keep),5000);
+    if(window.ResizeObserver){const ro=new ResizeObserver(()=>{chat.scrollTop=chat.scrollHeight;});ro.observe(card);setTimeout(()=>ro.disconnect(),8000);}
+  }catch(e){
+    document.getElementById("cal-inline").innerHTML=`<div style="padding:24px"><a class="cta" href="${CAL_URL}" target="_blank" rel="noopener">${L?"Agendar llamada ↗":"Book a call ↗"}</a></div>`;
+  }
+}
+
+/* ── Core message handler ───────────────────────── */
+async function handleMessage(userText, isTagSelection=false){
+  if(S.busy) return;
+  S.busy=true; sendBtn.disabled=true;
+  clearTags();
+
+  if(userText) detectLang(userText);
+  if(userText && !isTagSelection) addUser(userText);
+
+  // Email validation — handle locally without Claude
+  if(S.step===9){
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(userText)){
+      addAI(S.lang==="es"?"Ese email no parece válido — ¿lo revisas?":"That doesn't look like a valid email — mind double-checking it?");
+      S.busy=false; sendBtn.disabled=false; input.focus();
+      return;
+    }
+    S.data.email=userText;
+    await finalSequence();
+    return;
+  }
+
+  showTyping();
+  try{
+    const resp = await askClaude(userText || (isTagSelection ? `(selected: ${userText})` : ""));
+
+    // Merge collected data into state
+    if(resp.collected){
+      for(const [k,v] of Object.entries(resp.collected)){
+        if(k==="services" && Array.isArray(v)) S.data.services=v;
+        else if(k==="brandingIdx") S.data.brandingIdx=parseInt(v);
+        else if(k==="budgetIdx") S.data.budgetIdx=parseInt(v);
+        else if(S.data.hasOwnProperty(k)) S.data[k]=v;
+      }
+    }
+
+    if(resp.stepComplete) S.step=Math.min(S.step+1, TOTAL_STEPS);
+    setProgress();
+
+    hideTyping();
+    addAI(resp.message);
+
+    // Show tag options if Claude says so
+    if(resp.showTags==="services"){
+      showTags("services", true, (vals)=>{ addUser(Array.isArray(vals)?vals.join(", "):vals); S.data.services=Array.isArray(vals)?vals:[vals]; S.step++; setProgress(); handleMessage(null,true); });
+    } else if(resp.showTags==="branding"){
+      showTags("branding", false, (val)=>{ addUser(val); S.data.branding=val; S.data.brandingIdx=OPTS.branding[S.lang].indexOf(val); S.step++; setProgress(); handleMessage(null,true); });
+    } else if(resp.showTags==="budget"){
+      showTags("budget", false, (val)=>{ addUser(val); S.data.budgetText=val; S.data.budgetIdx=OPTS.budget[S.lang].indexOf(val); S.step++; setProgress(); handleMessage(null,true); });
+    } else if(resp.showTags==="timeline"){
+      showTags("timeline", false, (val)=>{ addUser(val); S.data.timeline=val; S.step++; setProgress(); handleMessage(null,true); });
+    }
+
+    // Check if Claude is asking for email
+    if(resp.isEmailStep) S.step=9;
+
+  } catch(e){
+    hideTyping();
+    addAI(S.lang==="es"?"Algo falló — ¿puedes intentarlo de nuevo?":"Something went wrong — can you try again?");
+    console.error(e);
+  }
+
+  S.busy=false; sendBtn.disabled=false; input.focus();
+}
+
+/* ── Final sequence ─────────────────────────────── */
+async function finalSequence(){
+  hideTyping();
+  const L=S.lang==="es";
+  const match=isMatch();
+
+  // Summary message
+  showTyping(); await wait(600); hideTyping();
+  const svcStr=S.data.services.join(" + ")||(L?"diseño y desarrollo":"design and development");
+  const scratch=S.data.brandingIdx===0;
+  addAI(`${S.data.name}, ${L?"aquí está tu estimado para":"here's your estimate for"} ${S.data.project}. ${svcStr}${scratch?(L?" desde cero":" from scratch"):""}, ${L?"listo para lanzar.":"built to ship."}`);
+
+  await wait(400);
+  renderBrief();
+  await wait(500);
+
+  showTyping(); await wait(700); hideTyping();
+  if(match){
+    addAI(L?`${S.data.project} es exactamente el tipo de proyecto para el que estamos hechos. Elige un horario abajo y hablamos de alcance, proceso y próximos pasos.`:`${S.data.project} is exactly the kind of project we're built for. Pick a time below and let's talk scope, process, and next steps.`);
+    await wait(300);
+    renderCal();
+  } else {
+    addAI(L?`Gracias por los detalles, ${S.data.name}. El presupuesto está por debajo de nuestro mínimo habitual, pero hay formas más pequeñas de empezar — como un design review enfocado o un sprint de una semana. Te escribimos a ${S.data.email} con opciones.`:`Thanks for the details, ${S.data.name}. The budget sits below our usual minimum, but there are smaller ways to start — like a focused design review or a one-week sprint. We'll reach out at ${S.data.email} with options that fit.`);
+  }
+
+  S.step=TOTAL_STEPS; setProgress(); sendLead();
+  input.disabled=true; sendBtn.disabled=true;
+  input.placeholder=L?"Conversación completada ✓":"Conversation complete ✓";
+  S.busy=false;
+}
+
+/* ── Submit wiring ──────────────────────────────── */
+function submit(){
+  if(S.busy) return;
+  if(S.step===3 && S.multiSel.size && !input.value.trim()){
+    const vals=[...S.multiSel];
+    addUser(vals.join(", ")); S.data.services=vals; clearTags(); S.step++; setProgress();
+    handleMessage(null, true); return;
+  }
+  const v=input.value.trim(); input.value="";
+  if(v) handleMessage(v);
+}
+sendBtn.addEventListener("click", submit);
+input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+
+/* ── Init ───────────────────────────────────────── */
+(function init(){
+  setProgress();
+  showTyping();
+  setTimeout(async()=>{
+    hideTyping();
+    // First message from Claude
+    try{
+      const resp = await askClaude("(conversation start — greet the user and ask for their name)");
+      addAI(resp.message);
+    } catch(e){
+      addAI("Hey — I'm the Aller Studio quote assistant. This takes about 5–10 minutes, and by the end you'll have an estimated scope and budget for your project. What's your name?");
+    }
+    S.step=0; fill.style.width=(1/TOTAL_STEPS*100)+"%"; input.focus();
+  }, 650);
+})();
+</script>
+</body>
+</html>
