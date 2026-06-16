@@ -337,7 +337,7 @@ YOUR MISSION: Qualify the lead and collect the information needed to estimate a 
 10. Email address (last step — to send the detailed proposal)
 
 RULES:
-- Reply ALWAYS in ${lang}
+- Reply ALWAYS in ${lang}. This is NON-NEGOTIABLE. Even if the user mentions Spanish-speaking countries, brands, or people, your response language NEVER changes. The language is set at the start of the conversation and stays fixed.
 - Ask ONE question at a time. Never stack multiple questions.
 - You CAN briefly acknowledge or react to an answer if it's genuinely interesting (1 short sentence max), then move to the next question.
 - If the user asks something off-topic (pricing details, process, portfolio, team size), answer briefly and get back on track.
@@ -434,7 +434,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 /* ── Language detection ─────────────────────────── */
 function detectLang(text){
   if(S.lang==="es") return;
-  const es=/[ñáéíóúü¿¡]|\b(hola|soy|me llamo|desde|estoy|méxico|mexico|perú|lima|bogotá|colombia|argentina|chile|españa|gracias|empresa|proyecto|diseño|necesito|queremos|busco)\b/i;
+  const es=/[ñáéíóúü¿¡]|\b(hola|soy|me llamo|desde|estoy|diseño|necesito|queremos|busco|empresa|proyecto)\b/i;
   if(es.test(text)){ S.lang="es"; document.getElementById("brandSub").textContent="Asistente de cotización ∙ ≈5-10 min"; }
 }
 
