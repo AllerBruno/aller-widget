@@ -457,7 +457,9 @@ async function askClaude(userMessage){
   });
   const data = await res.json();
   const raw = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
-  return JSON.parse(raw.replace(/```json|```/g,"").trim());
+  const match = raw.match(/\{[\s\S]*\}/);
+if(!match) throw new Error("No JSON found");
+return JSON.parse(match[0]);
 }
 
 /* ── Qualification + estimate ───────────────────── */
