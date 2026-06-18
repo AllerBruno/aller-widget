@@ -17,6 +17,7 @@
     --track:#D6D6D6;
     --btn:#21262B;
     --btn-border:#191C20;
+    --danger:#FF5C5C;
     --bubble-grad:linear-gradient(90deg,#DADEE2 0%,#F2F4F5 100%);
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -70,12 +71,14 @@
   .logo.lg{width:64px;height:64px}
   .logo.sm{width:32px;height:32px}
 
-  /* vertical grid lines */
+  /* vertical grid lines — sit behind all content (input, buttons, titles, bubbles) */
   .vline{
     position:absolute;top:0;bottom:0;
     width:1px;background:var(--n300);
-    z-index:3;pointer-events:none;
+    z-index:-1;pointer-events:none;
   }
+  .vline-l{left:23px}
+  .vline-r{right:23px}
 
   /* corner dot clusters */
   .dots{position:absolute;width:14px;height:14px;z-index:4;pointer-events:none}
@@ -191,6 +194,33 @@
   .cal-body::-webkit-scrollbar-thumb{background:var(--n300);border-radius:3px}
   @media (max-width:640px){ .cal-body{height:560px} }
 
+  /* ── Cal.com slide-over panel (covers the whole widget, own scroll context) ── */
+  .cal-overlay{
+    position:absolute;inset:0;z-index:50;
+    background:#fff;
+    display:flex;flex-direction:column;
+    transform:translateX(100%);
+    transition:transform .35s ease;
+  }
+  .cal-overlay.open{transform:translateX(0)}
+  .cal-overlay-head{
+    flex:0 0 auto;display:flex;align-items:center;gap:12px;
+    padding:16px 20px;background:var(--bubble-grad);border-bottom:1px solid #fff;
+  }
+  .cal-back{
+    width:36px;height:36px;border-radius:50%;border:none;background:#fff;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    flex:0 0 auto;color:var(--dark);
+    transition:transform .12s ease, background .12s ease;
+  }
+  .cal-back:hover{background:var(--n200)}
+  .cal-back:active{transform:scale(.92)}
+  .cal-back:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .cal-overlay-head h4{flex:1;font-family:'Rajdhani',Arial,sans-serif;font-weight:700;font-size:18px;color:#000}
+  .cal-overlay-head a{font-size:12px;font-weight:500;color:var(--body);text-decoration:none;white-space:nowrap}
+  .cal-overlay-head a:hover{color:var(--dark)}
+  .cal-overlay-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+
   /* ── Input bar ────────────────────────────────── */
   .inputbar{
     flex:0 0 auto;
@@ -204,6 +234,22 @@
     background:var(--bubble-grad);
     border:1px solid #fff;border-radius:16px;
     display:flex;align-items:center;overflow:hidden;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field:focus-within{
+    border-color:var(--lime);
+    box-shadow:0 0 0 3px rgba(213,254,0,.25);
+  }
+  .field.error{
+    border-color:var(--danger);
+    box-shadow:0 0 0 3px rgba(255,92,92,.2);
+    animation:fieldShake .3s ease;
+  }
+  @keyframes fieldShake{
+    10%,90%{transform:translateX(-1px)}
+    20%,80%{transform:translateX(2px)}
+    30%,50%,70%{transform:translateX(-3px)}
+    40%,60%{transform:translateX(3px)}
   }
   .field input{
     width:100%;height:100%;background:transparent;border:none;outline:none;
@@ -214,24 +260,54 @@
     flex:0 0 64px;height:64px;
     background:var(--btn);border:2px solid var(--btn-border);border-radius:16px;
     display:flex;align-items:center;justify-content:center;
-    cursor:pointer;transition:transform .12s ease,opacity .12s ease;
+    cursor:pointer;
+    transition:transform .12s ease,opacity .12s ease,box-shadow .12s ease;
   }
-  .send:hover{transform:translateY(-1px)}
-  .send:disabled{opacity:.5;cursor:default;transform:none}
+  .send:hover:not(:disabled){
+    transform:translateY(-2px);
+    box-shadow:0 8px 18px rgba(0,0,0,.22);
+  }
+  .send:active:not(:disabled){
+    transform:translateY(0) scale(.93);
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+  }
+  .send:focus-visible{
+    outline:2px solid var(--lime);
+    outline-offset:3px;
+  }
+  .send:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none}
+  .send.sending{cursor:default}
+  .send.sending svg{animation:sendPulse 1s ease-in-out infinite}
+  @keyframes sendPulse{0%,100%{opacity:1}50%{opacity:.35}}
   .send svg{width:24px;height:24px}
 
   /* mobile */
   @media (max-width:640px){
-    .widget{height:100dvh;max-height:720px;border-radius:16px}
-    .header{flex-basis:92px;padding:8px 20px 0}
+    .widget{height:100vh;height:100dvh;max-height:720px;border-radius:16px}
+    .header{
+      flex-basis:92px;
+      padding:max(8px, env(safe-area-inset-top)) 20px 0;
+    }
     .logo.lg{width:48px;height:48px}
     .brand-name{font-size:20px}
-    .chat{padding:24px 18px 16px}
+    .vline-l{left:17px}
+    .vline-r{right:17px}
+    .chat{padding:24px 18px 16px;gap:18px}
     .bubble{max-width:84%;padding:14px}
     .tags{margin-left:0}
-    .inputbar{padding:12px 18px 16px}
+    .tag{padding:11px 14px;font-size:13px}
+    .brief .r .v{word-break:break-word}
+    .price{font-size:26px}
+    .cal-overlay-head{padding:14px 16px}
+    .cal-overlay-head h4{font-size:16px}
+    .cal-overlay-head a{display:none}
+    .cal-back{width:40px;height:40px}
+    .inputbar{
+      padding:12px 18px max(16px, env(safe-area-inset-bottom));
+    }
     .field,.send{height:54px}
     .send{flex-basis:54px}
+    .field input{font-size:16px} /* ≥16px avoids iOS auto-zoom on focus */
   }
 </style>
 </head>
@@ -241,8 +317,8 @@
   <div class="progress"><div class="fill" id="progressFill"></div></div>
 
   <!-- vertical grid lines -->
-  <div class="vline" style="left:23px"></div>
-  <div class="vline" style="right:23px"></div>
+  <div class="vline vline-l"></div>
+  <div class="vline vline-r"></div>
 
   <div class="header">
     <div class="logo lg"><span class="bar"></span></div>
@@ -260,13 +336,26 @@
     <span class="dots" style="left:16px;top:-8px"><i></i><i></i><i></i><i></i></span>
     <span class="dots" style="right:16px;top:-8px"><i></i><i></i><i></i><i></i></span>
     <div class="field">
-      <input id="input" type="text" autocomplete="off" placeholder="Write your answer..." aria-label="Your answer">
+      <input id="input" type="text" autocomplete="off" enterkeyhint="send" placeholder="Write your answer..." aria-label="Your answer">
     </div>
     <button class="send" id="sendBtn" aria-label="Send">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M6 18L18 6M18 6H9M18 6V15" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
+  </div>
+
+  <div class="cal-overlay" id="calOverlay" aria-hidden="true">
+    <div class="cal-overlay-head">
+      <button class="cal-back" id="calBack" type="button" aria-label="Back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14.7568 6L9.90713 9.99038C8.69762 10.9856 8.69762 12.8143 9.90713 13.8095L15 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <h4 id="calOverlayTitle">PICK YOUR TIME</h4>
+      <a href="" target="_blank" rel="noopener" id="calOverlayOpenTab">Open in new tab ↗</a>
+    </div>
+    <div class="cal-overlay-body" id="cal-inline"></div>
   </div>
 </div>
 
@@ -280,7 +369,7 @@
    ════════════════════════════════════════════════════════════ */
 const CONFIG = {
   API_ENDPOINT: "https://aller-proxy.onrender.com/chat",
-  CAL_LINK    : "bruno-aller-i8z4lj/30min",
+  CAL_LINK    : "allerstudio/intro",
   WEBHOOK_URL : ""
 };
 const CAL_URL = "https://cal.com/" + CONFIG.CAL_LINK;
@@ -317,49 +406,43 @@ const OPTS = {
                es:["ASAP (<4 semanas)","Normal (1-3 meses)","Flexible (3+ meses)"] }
 };
 
-/* ── System prompt for Claude ───────────────────── */
-function buildSystem(){
-  const lang = S.lang === "es" ? "Spanish" : "English";
+/* ── Fixed question flow (deterministic — never depends on the AI) ──
+   STEP_FIELD: where to store a free-typed answer for the step currently
+   being asked. QUESTIONS[N]: the question shown when transitioning INTO
+   step N (i.e. right after the answer for step N-1 was collected).
+   useAck:true means a short Claude-generated acknowledgment of the PREVIOUS
+   answer is prepended — if that call fails for any reason, the question
+   still gets asked exactly the same, just without the extra flourish. ── */
+const STEP_FIELD = {
+  0:"name", 1:"location", 2:"project", 3:"services",
+  4:"branding", 5:"product", 6:"competitors", 7:"budgetText", 8:"timeline"
+};
 
-  const stepInstructions = {
-    0: `Ask for the user's name. Nothing else.`,
-    1: `You have their name (${S.data.name}). Ask where they're based (country/city). Nothing else.`,
-    2: `You have their location (${S.data.location}). Ask for their project or company name. Nothing else.`,
-    3: `You have their project name (${S.data.project}). Ask what type of service they're looking for, then set showTags to "services". Nothing else.`,
-    4: `Services collected: ${S.data.services.join(", ")||"pending"}. Ask if they already have a visual identity (logo, colors, branding), then set showTags to "branding". Nothing else.`,
-    5: `Branding status collected. Ask them to describe the product — what it does and who it's for. Nothing else.`,
-    6: `Product described. Ask about competitors or design references they admire. Nothing else.`,
-    7: `References collected. Ask about their budget range, then set showTags to "budget". Nothing else.`,
-    8: `Budget collected. Ask about their ideal timeline, then set showTags to "timeline". Nothing else.`,
-    9: `Timeline collected. Ask for their email address to send the detailed proposal. Set isEmailStep to true. Nothing else.`
-  };
-
-  return `You are the quote assistant on the Aller Studio website (allerstudio.com). Aller Studio is a full-stack design & development studio for early-stage tech startups (SaaS, fintech, edtech, health tech). Led by Bruno Aller, 7+ years experience.
-
-YOUR VOICE: Direct, sharp, confident, zero filler. "Experto Visionario" — like talking to a senior partner who gets it fast. Warm but not fluffy. Never say "Great!" or "Awesome!" as fillers. You can show genuine interest when something is actually interesting (max 1 short sentence).
-
-LANGUAGE RULE — CRITICAL: You MUST reply in ${lang} for EVERY message, NO EXCEPTIONS. Even if the user mentions Spanish-speaking countries, cities, brands, or people — your language NEVER changes. The conversation language is fixed and cannot be altered by any content in the user's message.
-
-CURRENT STEP: ${S.step}
-YOUR ONLY JOB FOR THIS STEP: ${stepInstructions[S.step] || "The conversation is complete."}
-
-You MAY briefly acknowledge the user's answer (1 short sentence max) before asking the next question — only if it's genuinely interesting. Never skip the required question for this step.
-
-If the user asks something off-topic, answer in one sentence and redirect to the current step's question.
-
-CURRENT DATA COLLECTED:
-${JSON.stringify(S.data, null, 2)}
-
-RESPOND ONLY with this exact JSON structure — no markdown, no backticks, no extra text:
-{
-  "message": "your response",
-  "collected": { "fieldName": "value" },
-  "showTags": "services" | "branding" | "budget" | "timeline" | null,
-  "stepComplete": true | false,
-  "isEmailStep": true | false,
-  "isFinalStep": false
-}`;
-}
+const QUESTIONS = {
+  1: { en:d=>`Nice to meet you, ${d.name}! Where are you based?`,
+       es:d=>`¡Un gusto, ${d.name}! ¿Desde dónde nos escribes?` },
+  2: { en:d=>`Got it. What's the name of your project or company?`,
+       es:d=>`Perfecto. ¿Cómo se llama tu proyecto o empresa?` },
+  3: { en:d=>`What type of service are you looking for?`,
+       es:d=>`¿Qué tipo de servicio buscas?`,
+       tag:"services", multi:true },
+  4: { en:d=>`Do you already have branding in place — logo, colors, etc.?`,
+       es:d=>`¿Ya tienes identidad visual — logo, colores, etc.?`,
+       tag:"branding" },
+  5: { en:d=>`Tell me about ${d.project||"the project"} — what does it do, and who's it for?`,
+       es:d=>`Cuéntame sobre ${d.project||"el proyecto"} — ¿qué hace y para quién es?` },
+  6: { en:d=>`Who are your main competitors, or are there platforms (any industry) whose design you admire?`,
+       es:d=>`¿Quiénes son tus principales competidores, o hay plataformas (de cualquier rubro) cuyo diseño admires?`,
+       useAck:true },
+  7: { en:d=>`What's your budget range for this project?`,
+       es:d=>`¿Cuál es tu rango de presupuesto para este proyecto?`,
+       tag:"budget", useAck:true },
+  8: { en:d=>`What's your ideal timeline?`,
+       es:d=>`¿Cuál es tu timeline ideal?`,
+       tag:"timeline" },
+  9: { en:d=>`Last thing — what's your email so we can send over the detailed proposal?`,
+       es:d=>`Última cosa — ¿cuál es tu email para enviarte la propuesta detallada?` }
+};
 
 /* ── UI Elements ────────────────────────────────── */
 const chat    = document.getElementById("chat");
@@ -423,37 +506,49 @@ function showTags(type, multi=false, onPick){
     : (S.lang==="es" ? "Toca una opción o escribe tu respuesta..." : "Tap an option or type your answer...");
 }
 function clearTags(){ if(tagWrap){tagWrap.remove();tagWrap=null;} S.multiSel.clear(); input.placeholder=S.lang==="es"?"Escribe tu respuesta...":"Write your answer..."; }
+function flashFieldError(){
+  const f = input.closest(".field");
+  if(!f) return;
+  f.classList.remove("error");
+  requestAnimationFrame(()=>{ f.classList.add("error"); });
+  setTimeout(()=>f.classList.remove("error"), 600);
+}
 function scrollDown(){ requestAnimationFrame(()=>{ chat.scrollTop=chat.scrollHeight; }); }
 function setProgress(){ fill.style.width=Math.min(100,(S.step/TOTAL_STEPS)*100)+"%"; }
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
-/* ── Language detection ─────────────────────────── */
-function detectLang(text){
-  if(S.lang==="es") return;
-  const es=/[ñáéíóúü¿¡]|\b(hola|soy|me llamo|desde|estoy|méxico|mexico|perú|lima|bogotá|colombia|argentina|chile|españa|gracias|empresa|proyecto|diseño|necesito|queremos|busco)\b/i;
-  if(es.test(text)){ S.lang="es"; document.getElementById("brandSub").textContent="Asistente de cotización ∙ ≈5-10 min"; }
-}
+/* ── Optional AI acknowledgment ──────────────────────────────────
+   Used only for flavor on the two open-text questions (product
+   description, competitors). Plain text, never JSON, never controls
+   step progression. Any failure → empty string → question still asks
+   normally with zero personalization, nothing breaks. ── */
+async function getAck(answerText){
+  if(!answerText) return "";
+  try{
+    const sys = S.lang==="es"
+      ? `Eres el asistente de Aller Studio (estudio de diseño y desarrollo para startups tech). El usuario acaba de responder: "${answerText}". Escribe SOLO una oración corta (máx 15 palabras) reconociendo su respuesta de forma específica e inteligente. Tono directo, seguro, "Experto Visionario" — sin relleno, sin "¡Genial!", sin preguntas, sin saludos, sin emojis. Si no hay nada interesante que decir, responde con un string vacío. RESPONDE SOLO CON LA ORACIÓN, sin comillas ni texto extra.`
+      : `You are the Aller Studio assistant (design & dev studio for tech startups). The user just answered: "${answerText}". Write ONLY one short sentence (max 15 words) acknowledging their answer in a specific, sharp way. Direct, confident, "Experto Visionario" tone — no filler, no "Great!", no questions, no greetings, no emojis. If there's nothing interesting to say, reply with an empty string. RESPOND WITH ONLY THE SENTENCE, no quotes, no extra text.`;
 
-/* ── Claude API call ────────────────────────────── */
-async function askClaude(userMessage){
-  const messages = [
-    ...S.messages.slice(-16), // keep last 16 messages for context
-    {role:"user", content: userMessage ? `[User wrote in their language, respond ONLY in ${S.lang === "es" ? "Spanish" : "English"}: "${userMessage}"]` : "(user sent a tag selection)"}
-  ];
-
-  const res = await fetch(CONFIG.API_ENDPOINT, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system: buildSystem(),
-      messages
-    })
-  });
-  const data = await res.json();
-  const raw = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
-  return JSON.parse(raw.replace(/```json|```/g,"").trim());
+    const res = await fetch(CONFIG.API_ENDPOINT, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 60,
+        system: sys,
+        messages: [{role:"user", content: answerText}]
+      })
+    });
+    if(!res.ok) return "";
+    const data = await res.json();
+    let text = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("").trim();
+    text = text.replace(/^["“'']+|["”'']+$/g,"").trim();
+    if(!text || text.length>160 || /\?/.test(text)) return "";
+    return text;
+  }catch(e){
+    console.error("getAck failed (non-fatal):", e);
+    return "";
+  }
 }
 
 /* ── Qualification + estimate ───────────────────── */
@@ -535,92 +630,136 @@ function sendLead(){
   fetch(CONFIG.WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{});
 }
 
-/* ── Cal.com embed ──────────────────────────────── */
-function renderCal(){
+/* ── Cal.com slide-over panel ─────────────────────
+   Lives OUTSIDE the .chat scroll container as a full overlay, so the
+   iframe's own scroll/wheel handling never fights with the chat's
+   scroll — that's what caused the "can't scroll past the calendar" bug. */
+const calOverlay = document.getElementById("calOverlay");
+const calBack    = document.getElementById("calBack");
+let calLoaded = false;
+
+function openCalPanel(){
   const L=S.lang==="es";
-  const card=document.createElement("div"); card.className="cal-card";
-  card.innerHTML=`
-    <div class="cal-head">
-      <h4>${L?"ELIGE TU HORARIO":"PICK YOUR TIME"}</h4>
-      <a href="${CAL_URL}" target="_blank" rel="noopener">${L?"Abrir en pestaña nueva ↗":"Open in new tab ↗"}</a>
-    </div>
-    <div class="cal-body" id="cal-inline"></div>`;
-  chat.appendChild(card); scrollDown();
+  document.getElementById("calOverlayTitle").textContent = L?"ELIGE TU HORARIO":"PICK YOUR TIME";
+  const tabLink = document.getElementById("calOverlayOpenTab");
+  tabLink.href = CAL_URL;
+  tabLink.textContent = L?"Abrir en pestaña nueva ↗":"Open in new tab ↗";
+  calOverlay.classList.add("open");
+  calOverlay.setAttribute("aria-hidden","false");
+  if(!calLoaded){ initCalEmbed(); calLoaded=true; }
+}
+function closeCalPanel(){
+  calOverlay.classList.remove("open");
+  calOverlay.setAttribute("aria-hidden","true");
+}
+calBack.addEventListener("click", closeCalPanel);
+
+function initCalEmbed(){
+  const L=S.lang==="es";
   try{
     (function(C,A,L){let p=function(a,ar){a.q.push(ar)};let d=C.document;C.Cal=C.Cal||function(){let cal=C.Cal;let ar=arguments;if(!cal.loaded){cal.ns={};cal.q=cal.q||[];d.head.appendChild(d.createElement("script")).src=A;cal.loaded=true}if(ar[0]===L){const api=function(){p(api,arguments)};const namespace=ar[1];api.q=api.q||[];if(typeof namespace==="string"){cal.ns[namespace]=cal.ns[namespace]||api;p(cal.ns[namespace],ar);p(cal,["initNamespace",namespace])}else p(cal,ar);return}p(cal,ar)}})(window,"https://app.cal.com/embed/embed.js","init");
-    Cal("init","30min",{origin:"https://app.cal.com"});
-    Cal.ns["30min"]("inline",{elementOrSelector:"#cal-inline",calLink:CONFIG.CAL_LINK,config:{layout:"month_view",name:S.data.name||"",email:S.data.email||""}});
-    Cal.ns["30min"]("ui",{hideEventTypeDetails:false,layout:"month_view"});
-    const keep=setInterval(()=>{chat.scrollTop=chat.scrollHeight;},400);
-    setTimeout(()=>clearInterval(keep),5000);
-    if(window.ResizeObserver){const ro=new ResizeObserver(()=>{chat.scrollTop=chat.scrollHeight;});ro.observe(card);setTimeout(()=>ro.disconnect(),8000);}
+    Cal("init","intro",{origin:"https://app.cal.com"});
+    Cal.ns["intro"]("inline",{elementOrSelector:"#cal-inline",calLink:CONFIG.CAL_LINK,config:{layout:"month_view",name:S.data.name||"",email:S.data.email||""}});
+    Cal.ns["intro"]("ui",{hideEventTypeDetails:false,layout:"month_view"});
   }catch(e){
     document.getElementById("cal-inline").innerHTML=`<div style="padding:24px"><a class="cta" href="${CAL_URL}" target="_blank" rel="noopener">${L?"Agendar llamada ↗":"Book a call ↗"}</a></div>`;
   }
 }
 
-/* ── Core message handler ───────────────────────── */
-async function handleMessage(userText, isTagSelection=false){
+/* persistent "Book a call" button inside the chat, re-opens the panel */
+function addCalCTA(){
+  const L=S.lang==="es";
+  const row=document.createElement("div"); row.className="row";
+  row.appendChild(avatar());
+  const wrap=document.createElement("div"); wrap.style.display="flex";
+  const btn=document.createElement("button"); btn.type="button"; btn.className="cta";
+  btn.textContent = L?"Agendar llamada ↗":"Book a call ↗";
+  btn.onclick=openCalPanel;
+  wrap.appendChild(btn); row.appendChild(wrap);
+  chat.appendChild(row); scrollDown();
+}
+
+/* ── Step progression — always decided in JS, never by the AI ───── */
+async function advanceAndAsk(prevStep, prevAnswerText){
+  const nextStep = prevStep+1;
+  S.step = nextStep; setProgress();
+
+  if(nextStep===9){ input.setAttribute("inputmode","email"); input.setAttribute("autocomplete","email"); }
+  else { input.setAttribute("inputmode","text"); input.setAttribute("autocomplete","off"); }
+
+  const qDef = QUESTIONS[nextStep];
+  if(!qDef) return; // shouldn't happen — step 9 is handled separately in handleMessage
+
+  let ack = "";
+  if(qDef.useAck && prevAnswerText){
+    showTyping();
+    ack = await getAck(prevAnswerText);
+    hideTyping();
+  } else {
+    showTyping(); await wait(350); hideTyping();
+  }
+
+  const question = S.lang==="es" ? qDef.es(S.data) : qDef.en(S.data);
+  addAI(ack ? `${ack} ${question}` : question);
+
+  if(qDef.tag) showTagsForStep(nextStep, qDef.tag, !!qDef.multi);
+}
+
+function showTagsForStep(step, type, multi){
+  showTags(type, multi, (vals)=>{
+    const arr = Array.isArray(vals) ? vals : [vals];
+    addUser(arr.join(", "));
+    if(type==="services"){ S.data.services = arr; }
+    else if(type==="branding"){ S.data.branding = arr[0]; S.data.brandingIdx = OPTS.branding[S.lang].indexOf(arr[0]); }
+    else if(type==="budget"){ S.data.budgetText = arr[0]; S.data.budgetIdx = OPTS.budget[S.lang].indexOf(arr[0]); }
+    else if(type==="timeline"){ S.data.timeline = arr[0]; }
+    clearTags();
+    handleMessage(null, true, arr.join(", "));
+  });
+}
+
+/* ── Core message handler (deterministic) ─────────
+   The JS always knows exactly which step we're on and what to ask
+   next — Claude is never asked to track or decide flow, only (optionally)
+   to phrase a short acknowledgment. This can never skip a question. ── */
+async function handleMessage(userText, isTagSelection=false, ackSource=null){
   if(S.busy) return;
-  S.busy=true; sendBtn.disabled=true;
-  clearTags();
+  S.busy=true; sendBtn.disabled=true; sendBtn.classList.add("sending"); clearTags();
 
-  if(userText) detectLang(userText);
-  if(userText && !isTagSelection) addUser(userText);
-
-  // Email validation — handle locally without Claude
+  // Step 9 — email — validated locally, loops back on invalid input
   if(S.step===9){
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(userText)){
-      addAI(S.lang==="es"?"Ese email no parece válido — ¿lo revisas?":"That doesn't look like a valid email — mind double-checking it?");
-      S.busy=false; sendBtn.disabled=false; input.focus();
-      return;
+    if(!isTagSelection){
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(userText||"")){
+        addUser(userText);
+        addAI(S.lang==="es"?"Ese email no parece válido — ¿lo revisas?":"That doesn't look like a valid email — mind double-checking it?");
+        flashFieldError();
+        S.busy=false; sendBtn.disabled=false; sendBtn.classList.remove("sending"); input.focus();
+        return;
+      }
+      addUser(userText);
+      S.data.email=userText;
     }
-    S.data.email=userText;
     await finalSequence();
     return;
   }
 
-  showTyping();
-  try{
-    const resp = await askClaude(userText || (isTagSelection ? `(selected: ${userText})` : ""));
-
-    // Merge collected data into state
-    if(resp.collected){
-      for(const [k,v] of Object.entries(resp.collected)){
-        if(k==="services" && Array.isArray(v)) S.data.services=v;
-        else if(k==="brandingIdx") S.data.brandingIdx=parseInt(v);
-        else if(k==="budgetIdx") S.data.budgetIdx=parseInt(v);
-        else if(S.data.hasOwnProperty(k)) S.data[k]=v;
-      }
+  let ackText = ackSource;
+  if(!isTagSelection){
+    addUser(userText);
+    ackText = userText;
+    const field = STEP_FIELD[S.step];
+    if(field==="services"){
+      S.data.services = (userText||"").split(",").map(s=>s.trim()).filter(Boolean);
+    } else if(field==="budgetText"){
+      S.data.budgetText = userText; S.data.budgetIdx = -1;
+    } else if(field){
+      S.data[field] = userText;
     }
-
-    if(resp.stepComplete) S.step=Math.min(S.step+1, TOTAL_STEPS);
-    setProgress();
-
-    hideTyping();
-    addAI(resp.message);
-
-    // Show tag options if Claude says so
-    if(resp.showTags==="services"){
-      showTags("services", true, (vals)=>{ addUser(Array.isArray(vals)?vals.join(", "):vals); S.data.services=Array.isArray(vals)?vals:[vals]; S.step++; setProgress(); handleMessage(null,true); });
-    } else if(resp.showTags==="branding"){
-      showTags("branding", false, (val)=>{ addUser(val); S.data.branding=val; S.data.brandingIdx=OPTS.branding[S.lang].indexOf(val); S.step++; setProgress(); handleMessage(null,true); });
-    } else if(resp.showTags==="budget"){
-      showTags("budget", false, (val)=>{ addUser(val); S.data.budgetText=val; S.data.budgetIdx=OPTS.budget[S.lang].indexOf(val); S.step++; setProgress(); handleMessage(null,true); });
-    } else if(resp.showTags==="timeline"){
-      showTags("timeline", false, (val)=>{ addUser(val); S.data.timeline=val; S.step++; setProgress(); handleMessage(null,true); });
-    }
-
-    // Check if Claude is asking for email
-    if(resp.isEmailStep) S.step=9;
-
-  } catch(e){
-    hideTyping();
-    addAI(S.lang==="es"?"Algo falló — ¿puedes intentarlo de nuevo?":"Something went wrong — can you try again?");
-    console.error(e);
   }
 
-  S.busy=false; sendBtn.disabled=false; input.focus();
+  await advanceAndAsk(S.step, ackText);
+
+  S.busy=false; sendBtn.disabled=false; sendBtn.classList.remove("sending"); input.focus();
 }
 
 /* ── Final sequence ─────────────────────────────── */
@@ -643,13 +782,13 @@ async function finalSequence(){
   if(match){
     addAI(L?`${S.data.project} es exactamente el tipo de proyecto para el que estamos hechos. Elige un horario abajo y hablamos de alcance, proceso y próximos pasos.`:`${S.data.project} is exactly the kind of project we're built for. Pick a time below and let's talk scope, process, and next steps.`);
     await wait(300);
-    renderCal();
+    addCalCTA();
   } else {
     addAI(L?`Gracias por los detalles, ${S.data.name}. El presupuesto está por debajo de nuestro mínimo habitual, pero hay formas más pequeñas de empezar — como un design review enfocado o un sprint de una semana. Te escribimos a ${S.data.email} con opciones.`:`Thanks for the details, ${S.data.name}. The budget sits below our usual minimum, but there are smaller ways to start — like a focused design review or a one-week sprint. We'll reach out at ${S.data.email} with options that fit.`);
   }
 
   S.step=TOTAL_STEPS; setProgress(); sendLead();
-  input.disabled=true; sendBtn.disabled=true;
+  input.disabled=true; sendBtn.disabled=true; sendBtn.classList.remove("sending");
   input.placeholder=L?"Conversación completada ✓":"Conversation complete ✓";
   S.busy=false;
 }
@@ -659,8 +798,8 @@ function submit(){
   if(S.busy) return;
   if(S.step===3 && S.multiSel.size && !input.value.trim()){
     const vals=[...S.multiSel];
-    addUser(vals.join(", ")); S.data.services=vals; clearTags(); S.step++; setProgress();
-    handleMessage(null, true); return;
+    addUser(vals.join(", ")); S.data.services=vals; clearTags();
+    handleMessage(null, true, vals.join(", ")); return;
   }
   const v=input.value.trim(); input.value="";
   if(v) handleMessage(v);
@@ -691,7 +830,7 @@ function showLangSelector(){
   sendBtn.disabled=true; input.disabled=true;
 }
 
-async function selectLang(lang){
+function selectLang(lang){
   S.lang = lang;
   // clear language selector
   while(chat.firstChild) chat.removeChild(chat.firstChild);
@@ -702,17 +841,11 @@ async function selectLang(lang){
     : "Quote Assistant ∙ ≈5-10 min";
   input.placeholder = lang==="es" ? "Escribe tu respuesta..." : "Write your answer...";
 
-  showTyping();
-  try{
-    const resp = await askClaude("(conversation start — greet the user warmly and ask for their name)");
-    hideTyping(); addAI(resp.message);
-  } catch(e){
-    hideTyping();
-    addAI(lang==="es"
-      ? "Hola — soy el asistente de cotización de Aller Studio. Esto toma entre 5 y 10 minutos, y al final tendrás un alcance y presupuesto estimado para tu proyecto. ¿Cómo te llamas?"
-      : "Hey — I'm the Aller Studio quote assistant. This takes about 5–10 minutes, and by the end you'll have an estimated scope and budget for your project. What's your name?");
-  }
-  S.step=0; fill.style.width=(1/TOTAL_STEPS*100)+"%"; input.focus();
+  addAI(lang==="es"
+    ? "Hola — soy el asistente de cotización de Aller Studio. Esto toma entre 5 y 10 minutos, y al final tendrás un alcance y presupuesto estimado para tu proyecto. ¿Cómo te llamas?"
+    : "Hey — I'm the Aller Studio quote assistant. This takes about 5–10 minutes, and by the end you'll have an estimated scope and budget for your project. What's your name?");
+
+  S.step=0; setProgress(); input.focus();
 }
 
 /* ── Init ───────────────────────────────────────── */
