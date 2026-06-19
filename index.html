@@ -370,7 +370,7 @@
 const CONFIG = {
   API_ENDPOINT: "https://aller-proxy.onrender.com/chat",
   CAL_LINK    : "allerstudio/intro",
-  WEBHOOK_URL : ""
+  WEBHOOK_URL : "https://hook.us2.make.com/bodv07xd8s4kvf6sq2abw12m2ek6uhry"
 };
 const CAL_URL = "https://cal.com/" + CONFIG.CAL_LINK;
 
@@ -623,10 +623,17 @@ function renderBrief(){
 }
 
 /* ── Lead capture ───────────────────────────────── */
+function buildTranscript(){
+  return S.messages.map(m=>{
+    const who = m.role==="assistant" ? "Aller" : "Lead";
+    return `${who}: ${m.content}`;
+  }).join("\n");
+}
 function sendLead(){
   if(!CONFIG.WEBHOOK_URL) return;
   const payload={...S.data, vertical:detectVertical(), match:isMatch(), estimate:isMatch()?estimate():null,
-    lang:S.lang, source:"allerstudio.com quote widget", ts:new Date().toISOString()};
+    lang:S.lang, source:"allerstudio.com quote widget", ts:new Date().toISOString(),
+    transcript: buildTranscript()};
   fetch(CONFIG.WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{});
 }
 
