@@ -365,12 +365,13 @@
    ─────────────────────────────────────────────────────────────
    API_ENDPOINT → your Render proxy URL
    CAL_LINK     → your Cal.com link slug
-   WEBHOOK_URL  → Make/Zapier webhook for lead capture (optional)
+   LEAD_ENDPOINT → proxy route that forwards leads to Make. The Make webhook itself
+                   lives only on the proxy (Render env var), never in this page.
    ════════════════════════════════════════════════════════════ */
 const CONFIG = {
   API_ENDPOINT: "https://aller-proxy.onrender.com/chat",
   CAL_LINK    : "allerstudio/intro",
-  WEBHOOK_URL : "https://hook.us2.make.com/bodv07xd8s4kvf6sq2abw12m2ek6uhry"
+  LEAD_ENDPOINT: "https://aller-proxy.onrender.com/lead"
 };
 const CAL_URL = "https://cal.com/" + CONFIG.CAL_LINK;
 
@@ -457,7 +458,8 @@ function addAI(text){
   const row=document.createElement("div"); row.className="row";
   row.appendChild(avatar());
   const b=document.createElement("div"); b.className="bubble ai";
-  b.innerHTML=text.replace(/\n/g,"<br>");
+  // Plain text only (AI output and visitor answers are never parsed as HTML); line breaks kept
+  text.split("\n").forEach((line,i)=>{ if(i) b.appendChild(document.createElement("br")); b.appendChild(document.createTextNode(line)); });
   row.appendChild(b); chat.appendChild(row); scrollDown();
   S.messages.push({role:"assistant", content:text});
 }
@@ -525,23 +527,15 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function getAck(answerText){
   if(!answerText) return "";
   try{
-    const sys = S.lang==="es"
-      ? `Eres el asistente de Aller Studio (estudio de diseño y desarrollo para startups tech). El usuario acaba de responder: "${answerText}". Escribe SOLO una oración corta (máx 15 palabras) reconociendo su respuesta de forma específica e inteligente. Tono directo, seguro, "Experto Visionario" — sin relleno, sin "¡Genial!", sin preguntas, sin saludos, sin emojis. Si no hay nada interesante que decir, responde con un string vacío. RESPONDE SOLO CON LA ORACIÓN, sin comillas ni texto extra.`
-      : `You are the Aller Studio assistant (design & dev studio for tech startups). The user just answered: "${answerText}". Write ONLY one short sentence (max 15 words) acknowledging their answer in a specific, sharp way. Direct, confident, "Experto Visionario" tone — no filler, no "Great!", no questions, no greetings, no emojis. If there's nothing interesting to say, reply with an empty string. RESPOND WITH ONLY THE SENTENCE, no quotes, no extra text.`;
-
+    // The proxy builds the AI request itself (fixed model and instructions); we only send the answer
     const res = await fetch(CONFIG.API_ENDPOINT, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 60,
-        system: sys,
-        messages: [{role:"user", content: answerText}]
-      })
+      body: JSON.stringify({ lang: S.lang, answer: String(answerText).slice(0,500) })
     });
     if(!res.ok) return "";
     const data = await res.json();
-    let text = (data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("").trim();
+    let text = String(data.text||"").trim();
     text = text.replace(/^["“'']+|["”'']+$/g,"").trim();
     if(!text || text.length>160 || /\?/.test(text)) return "";
     return text;
@@ -614,15 +608,16 @@ function renderBrief(){
     ["Timeline", S.data.timeline]
   ];
   card.innerHTML=`<h3>${L?"Brief del proyecto":"Project brief"}</h3>
-    <div class="rows">${rows.map(([k,v])=>`<div class="r"><span class="k">${k}</span><span class="v">${v||"—"}</span></div>`).join("")}</div>
+    <div class="rows">${rows.map(([k,v])=>`<div class="r"><span class="k">${esc(k)}</span><span class="v">${esc(v||"—")}</span></div>`).join("")}</div>
     <div class="verdict">
       <span class="badge ${match?"":"no"}">${match?(L?"Match — Gran fit para Aller Studio":"Match — Great fit for Aller Studio"):(L?"No es fit por ahora — pero sigamos en contacto":"Not a fit right now — but let's stay in touch")}</span>
-      ${match?`<div class="price">${estimate()}</div>`:""}
+      ${match?`<div class="price">${esc(estimate())}</div>`:""}
     </div>`;
   chat.appendChild(card); scrollDown();
 }
 
 /* ── Lead capture ───────────────────────────────── */
+function esc(v){ return String(v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function buildTranscript(){
   return S.messages.map(m=>{
     const who = m.role==="assistant" ? "Aller" : "Lead";
@@ -630,11 +625,11 @@ function buildTranscript(){
   }).join("\n");
 }
 function sendLead(){
-  if(!CONFIG.WEBHOOK_URL) return;
+  if(!CONFIG.LEAD_ENDPOINT) return;
   const payload={...S.data, vertical:detectVertical(), match:isMatch(), estimate:isMatch()?estimate():null,
     lang:S.lang, source:"allerstudio.com quote widget", ts:new Date().toISOString(),
     transcript: buildTranscript()};
-  fetch(CONFIG.WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{});
+  fetch(CONFIG.LEAD_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{});
 }
 
 /* ── Cal.com slide-over panel ─────────────────────
