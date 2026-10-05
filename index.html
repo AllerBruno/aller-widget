@@ -689,9 +689,27 @@ function initCalEmbed(){
     Cal("init","intro",{origin:"https://app.cal.com"});
     Cal.ns["intro"]("inline",{elementOrSelector:"#cal-inline",calLink:CONFIG.CAL_LINK,config:{layout:"month_view",name:S.data.name||"",email:S.data.email||""}});
     Cal.ns["intro"]("ui",{hideEventTypeDetails:false,layout:"month_view"});
+    // Cal's own success screen can end up out of view inside its iframe: confirm the booking in the chat too
+    Cal.ns["intro"]("on",{action:"bookingSuccessfulV2",callback:onBooked});
+    Cal.ns["intro"]("on",{action:"bookingSuccessful",callback:onBooked});
   }catch(e){
     document.getElementById("cal-inline").innerHTML=`<div style="padding:24px"><a class="cta primary" href="${CAL_URL}" target="_blank" rel="noopener">${L?"Agendar llamada ↗":"Book a call ↗"}</a></div>`;
   }
+}
+
+let bookedOnce=false;
+function onBooked(e){
+  if(bookedOnce) return; bookedOnce=true;
+  const L=S.lang==="es";
+  const data=(e&&e.detail&&e.detail.data)||{};
+  const d=new Date(data.startTime||data.date||"");
+  const when=isNaN(d.getTime()) ? "" : d.toLocaleString(L?"es-PE":"en-US",{weekday:"long",day:"numeric",month:"long",hour:"numeric",minute:"2-digit"});
+  setTimeout(()=>{
+    closeCalPanel();
+    addAI(L
+      ? `¡Listo, tu llamada quedó agendada${when?` para el ${when}`:""}! Te enviamos la confirmación y el link de la reunión a tu email. Nos vemos pronto.`
+      : `You're all set — your call is booked${when?` for ${when}`:""}! We sent the confirmation and the meeting link to your email. Talk soon.`);
+  }, 1800);
 }
 
 /* final actions: "Book a call" (re-opens the calendar panel) and "Write on WhatsApp" */
