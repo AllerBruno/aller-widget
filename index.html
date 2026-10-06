@@ -900,7 +900,10 @@ function selectLang(lang){
 /* ── Init ───────────────────────────────────────── */
 (function init(){
   setProgress();
-  showLangSelector();
+  // The site passes its language (?lang=en|es): start right away in it; otherwise let the visitor choose
+  const lang=new URLSearchParams(location.search).get("lang");
+  if(lang==="en"||lang==="es") selectLang(lang);
+  else showLangSelector();
 })();
 </script>
 </body>
