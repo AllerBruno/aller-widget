@@ -39,7 +39,8 @@
     display:grid;grid-template-columns:330px 1fr;
   }
 
-  /* left: silhouette video over a white → lime → black gradient */
+  /* left: interactive 3D silhouette (same scene as the site's hero) over a white → lime → black gradient;
+     the clip stays as the fallback without WebGL */
   .side{
     position:relative;overflow:hidden;
     background:linear-gradient(to top,#121212 0%,var(--lime) 50%,var(--surface) 100%);
@@ -49,6 +50,9 @@
     transform:translate(calc(-50% + 10px),-50%);
     object-fit:cover;mix-blend-mode:darken;
   }
+  .side canvas{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:darken;opacity:0;transition:opacity 1s ease}
+  .side.gl canvas{opacity:1}
+  .side.gl video{display:none}
 
   /* right: the chat */
   .main{position:relative;isolation:isolate;display:flex;flex-direction:column;min-width:0;overflow:hidden}
@@ -299,6 +303,7 @@
 
 <div class="widget" id="widget">
   <div class="side" aria-hidden="true">
+    <canvas id="silhouette"></canvas>
     <video src="assets/orion.mp4" poster="assets/orion-poster.jpg" autoplay muted loop playsinline preload="metadata"></video>
   </div>
 
@@ -341,6 +346,32 @@
   </div>
 </div>
 
+<script type="module">
+  // 3D silhouette on the side panel (hidden below 900px, where nothing is loaded). Falls back to the clip.
+  const side = document.querySelector(".side");
+  const canvas = document.getElementById("silhouette");
+  const gl = (() => { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; } })();
+  if (gl && getComputedStyle(side).display !== "none") {
+    try {
+      const [{ mount }, buf] = await Promise.all([
+        import("./assets/silhouette.js"),
+        fetch("assets/silhouette.bin").then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
+      ]);
+      const sil = mount(canvas, buf, {
+        reduced: matchMedia("(prefers-reduced-motion: reduce)").matches,
+        light: false,
+        // Same framing as the clip in this narrow panel
+        frame: { halfH: 0.40, target: [0.012, 0.665], boxAspect: null },
+      });
+      const video = side.querySelector("video");
+      video.pause(); video.removeAttribute("src"); video.load();
+      side.classList.add("gl");
+      const sync = () => sil.setRunning(!document.hidden);
+      document.addEventListener("visibilitychange", sync);
+      sync();
+    } catch (e) { /* keep the clip */ }
+  }
+</script>
 <script>
 /* ════════════════════════════════════════════════════════════
    ALLER STUDIO — QUOTE ASSISTANT "ORION" (AI-powered)
