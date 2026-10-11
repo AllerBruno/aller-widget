@@ -931,10 +931,8 @@ function selectLang(lang){
 /* ── Init ───────────────────────────────────────── */
 (function init(){
   setProgress();
-  // The site passes its language (?lang=en|es): start right away in it; otherwise let the visitor choose
-  const lang=new URLSearchParams(location.search).get("lang");
-  if(lang==="en"||lang==="es") selectLang(lang);
-  else showLangSelector();
+  // Orion always opens by asking for the language (Bruno's call), whatever page of the site it's opened from
+  showLangSelector();
 })();
 </script>
 </body>
