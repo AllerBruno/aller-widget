@@ -1,4 +1,4 @@
-(()=>{var _=[[18,18,18],[38,47,0],[166,201,0],[213,254,0]].map(a=>a.map(e=>e/255)),h=32,x=1.6,R=`#version 300 es
+(()=>{var _=[[18,18,18],[38,47,0],[166,201,0],[213,254,0]].map(a=>a.map(e=>e/255)),v=32,x=1.6,R=`#version 300 es
 in vec2 a_pos;
 out vec2 v_uv;
 void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }`,T=`#version 300 es
@@ -14,7 +14,8 @@ uniform vec3 u_seed2;
 
 const float TAU = 6.28318530;
 const float SCALE = 0.4, TURB_AMP = 0.6, TURB_FREQ = 0.1, WAVE_FREQ = 2.4;
-const float DITHER = 0.2, EXPOSURE = 1.1, CONTRAST = 1.1;
+// Exposure and contrast at 1: Framer's 1.1 pushed the brand lime toward white
+const float DITHER = 0.2, EXPOSURE = 1.0, CONTRAST = 1.0;
 const int TURB_ITER = 4;
 
 vec3 toLinear(vec3 c) { return pow(c, vec3(2.2)); }
@@ -67,7 +68,7 @@ vec3 gamutMap(vec3 rgb) {
 void main() {
   vec2 frag = v_uv * u_resolution;
   vec2 p = (frag * 2.0 - u_resolution) / u_resolution.y;
-  float ang = ${(h*2.3999632).toFixed(6)};
+  float ang = ${(v*2.3999632).toFixed(6)};
   p = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * p;
   vec2 phase = (u_seed2.xy - 0.5) * TAU;
   float t = u_time * 0.3 * ${x.toFixed(2)};
@@ -95,4 +96,4 @@ void main() {
   vec3 lab = linearToOklab(palette(val) * EXPOSURE);
   lab.x = clamp((lab.x - 0.5) * CONTRAST + 0.5, 0.0, 1.0);
   fragColor = vec4(toSrgb(gamutMap(oklabToLinear(lab))), 1.0);
-}`;function g(a){let e=new Float32Array(3),n=new Uint32Array(e.buffer);e[0]=a,e[1]=a*1.5+7.31,e[2]=a*2.7+13.37;let t=Array.from(n),l=(o,c)=>Math.imul(o,c)>>>0,r=()=>{t[0]=t[0]+l(t[1],t[2])>>>0,t[1]=t[1]+l(t[2],t[0])>>>0,t[2]=t[2]+l(t[0],t[1])>>>0};for(let o=0;o<3;o++)t[o]=l(t[o],1664525)+1013904223>>>0;r();for(let o=0;o<3;o++)t[o]=(t[o]^t[o]>>>16)>>>0;return r(),t.map(o=>o/4294967295)}function A(a){let e=a.getContext("webgl2",{antialias:!1,alpha:!1,powerPreference:"low-power"});if(!e)return null;let n=(o,c)=>{let s=e.createShader(o);return e.shaderSource(s,c),e.compileShader(s),s},t=e.createProgram();if(e.attachShader(t,n(e.VERTEX_SHADER,R)),e.attachShader(t,n(e.FRAGMENT_SHADER,T)),e.linkProgram(t),!e.getProgramParameter(t,e.LINK_STATUS))return null;e.useProgram(t),e.bindBuffer(e.ARRAY_BUFFER,e.createBuffer()),e.bufferData(e.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),e.STATIC_DRAW);let l=e.getAttribLocation(t,"a_pos");e.enableVertexAttribArray(l),e.vertexAttribPointer(l,2,e.FLOAT,!1,0,0);let r=o=>e.getUniformLocation(t,o);return e.uniform3fv(r("u_colors"),_.flat()),e.uniform3fv(r("u_seed1"),g(h)),e.uniform3fv(r("u_seed2"),g(h+100)),{gl:e,time:r("u_time"),resolution:r("u_resolution"),pixelRatio:r("u_pixelRatio")}}function b(a){let e=window.matchMedia("(prefers-reduced-motion: reduce)").matches,n,t=0,l=!1,r=Math.random()*100,o=performance.now(),c=i=>{if(!n)return;let{gl:f}=n,v=Math.min(window.devicePixelRatio||1,2),u=Math.max(1,Math.round(a.clientWidth*v)),m=Math.max(1,Math.round(a.clientHeight*v));(a.width!==u||a.height!==m)&&(a.width=u,a.height=m,f.viewport(0,0,u,m)),f.uniform2f(n.resolution,u,m),f.uniform1f(n.pixelRatio,v),f.uniform1f(n.time,r+(i-o)/1e3),f.drawArrays(f.TRIANGLES,0,3)},s=i=>{c(i),t=requestAnimationFrame(s)},d=()=>{let i=l&&!document.hidden;i&&n===void 0&&(n=A(a),n&&(a.dataset.ready="")),cancelAnimationFrame(t),t=0,!(!i||!n)&&(e?c(performance.now()):t=requestAnimationFrame(s))},p=new IntersectionObserver(([i])=>{l=i.isIntersecting,d()});return p.observe(a),document.addEventListener("visibilitychange",d),()=>{var i;p.disconnect(),document.removeEventListener("visibilitychange",d),cancelAnimationFrame(t),(i=n==null?void 0:n.gl.getExtension("WEBGL_lose_context"))==null||i.loseContext()}}window.mountShaderFill=b;})();
+}`;function g(a){let e=new Float32Array(3),n=new Uint32Array(e.buffer);e[0]=a,e[1]=a*1.5+7.31,e[2]=a*2.7+13.37;let t=Array.from(n),l=(o,c)=>Math.imul(o,c)>>>0,r=()=>{t[0]=t[0]+l(t[1],t[2])>>>0,t[1]=t[1]+l(t[2],t[0])>>>0,t[2]=t[2]+l(t[0],t[1])>>>0};for(let o=0;o<3;o++)t[o]=l(t[o],1664525)+1013904223>>>0;r();for(let o=0;o<3;o++)t[o]=(t[o]^t[o]>>>16)>>>0;return r(),t.map(o=>o/4294967295)}function w(a){let e=a.getContext("webgl2",{antialias:!1,alpha:!1,powerPreference:"low-power"});if(!e)return null;let n=(o,c)=>{let s=e.createShader(o);return e.shaderSource(s,c),e.compileShader(s),s},t=e.createProgram();if(e.attachShader(t,n(e.VERTEX_SHADER,R)),e.attachShader(t,n(e.FRAGMENT_SHADER,T)),e.linkProgram(t),!e.getProgramParameter(t,e.LINK_STATUS))return null;e.useProgram(t),e.bindBuffer(e.ARRAY_BUFFER,e.createBuffer()),e.bufferData(e.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),e.STATIC_DRAW);let l=e.getAttribLocation(t,"a_pos");e.enableVertexAttribArray(l),e.vertexAttribPointer(l,2,e.FLOAT,!1,0,0);let r=o=>e.getUniformLocation(t,o);return e.uniform3fv(r("u_colors"),_.flat()),e.uniform3fv(r("u_seed1"),g(v)),e.uniform3fv(r("u_seed2"),g(v+100)),{gl:e,time:r("u_time"),resolution:r("u_resolution"),pixelRatio:r("u_pixelRatio")}}function b(a){let e=window.matchMedia("(prefers-reduced-motion: reduce)").matches,n,t=0,l=!1,r=Math.random()*100,o=performance.now(),c=i=>{if(!n)return;let{gl:f}=n,h=Math.min(window.devicePixelRatio||1,2),u=Math.max(1,Math.round(a.clientWidth*h)),m=Math.max(1,Math.round(a.clientHeight*h));(a.width!==u||a.height!==m)&&(a.width=u,a.height=m,f.viewport(0,0,u,m)),f.uniform2f(n.resolution,u,m),f.uniform1f(n.pixelRatio,h),f.uniform1f(n.time,r+(i-o)/1e3),f.drawArrays(f.TRIANGLES,0,3)},s=i=>{c(i),t=requestAnimationFrame(s)},d=()=>{let i=l&&!document.hidden;i&&n===void 0&&(n=w(a),n&&(a.dataset.ready="")),cancelAnimationFrame(t),t=0,!(!i||!n)&&(e?c(performance.now()):t=requestAnimationFrame(s))},p=new IntersectionObserver(([i])=>{l=i.isIntersecting,d()});return p.observe(a),document.addEventListener("visibilitychange",d),()=>{var i;p.disconnect(),document.removeEventListener("visibilitychange",d),cancelAnimationFrame(t),(i=n==null?void 0:n.gl.getExtension("WEBGL_lose_context"))==null||i.loseContext()}}window.mountShaderFill=b;})();
