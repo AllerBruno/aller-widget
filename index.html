@@ -194,7 +194,7 @@
   /* primary = the site's "Shader Button" (Framer): animated black → Aller lime liquid gradient (assets/shader-fill.js,
      same shader as the site), lime inner glow, white label; the gradient is the still fallback without WebGL2 */
   .cta.primary{
-    position:relative;isolation:isolate;overflow:hidden;color:#fff;
+    position:relative;isolation:isolate;overflow:hidden;color:#fff;clip-path:inset(0 round 999px);
     background:linear-gradient(110deg,#121212 0%,#262f00 35%,#a6c900 75%,#d5fe00 100%);
     box-shadow:0 0 32px rgba(213,254,0,.18);
   }
