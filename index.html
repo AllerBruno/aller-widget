@@ -129,12 +129,26 @@
     padding:16px 0 4px;animation:rise .3s ease both;
   }
   .thinking .dot{width:5px;height:5px;border-radius:50%;background:var(--lime-border);box-shadow:0 0 8px rgba(216,254,17,.6);animation:pulse 1.4s ease-in-out infinite}
-  .thinking .label{font-family:'Rajdhani',Arial,sans-serif;font-weight:600;font-size:16px;line-height:18px;color:#fff;margin-top:8px}
-  .thinking .wave{display:flex;gap:4px;height:16px}
-  .thinking .wave i{width:4px;height:4px;margin-top:6px;border-radius:50%;background:#fff;animation:wave 1.2s ease-in-out infinite}
-  .thinking .wave i:nth-child(2){animation-delay:.15s}
-  .thinking .wave i:nth-child(3){animation-delay:.3s}
-  @keyframes wave{0%,100%{transform:translateY(-4px);opacity:.5}50%{transform:translateY(4px);opacity:1}}
+  /* transitions.dev "Thinking states": a highlight sweeps the status line while it holds; every 2s it swaps to the
+     next state (old line rises out blurred, new one rises in from below). The hidden sizer holds the longest state
+     so the box never resizes mid-swap. */
+  .t-think{position:relative;display:inline-block;text-align:center;margin-top:8px;
+    font-family:'Rajdhani',Arial,sans-serif;font-weight:600;font-size:16px;line-height:18px}
+  .t-think-sizer{display:block;visibility:hidden;white-space:nowrap}
+  .t-think-text{position:absolute;top:0;left:0;right:0;display:block;white-space:nowrap;color:rgba(255,255,255,.45);
+    transform:translateY(0);filter:blur(0);opacity:1;
+    transition:transform 150ms ease-in-out,filter 150ms ease-in-out,opacity 150ms ease-in-out;will-change:transform,filter,opacity}
+  .t-think-text::before{content:attr(data-text);position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(90deg,transparent 0%,transparent 40%,#fff 50%,transparent 60%,transparent 100%);
+    background-size:400% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;
+    color:transparent;-webkit-text-fill-color:transparent;animation:t-think-shimmer 2000ms linear infinite}
+  @keyframes t-think-shimmer{0%{background-position:100% 0}100%{background-position:0% 0}}
+  .t-think-text.is-exit{transform:translateY(-8px);filter:blur(2px);opacity:0}
+  .t-think-text.is-enter-start{transition:none;transform:translateY(8px);filter:blur(2px);opacity:0}
+
+  /* transitions.dev "Streaming text": Orion's replies resolve word by word through a soft blur */
+  .t-stream-w{opacity:0;filter:blur(1px);transition:opacity 350ms cubic-bezier(.22,1,.36,1),filter 350ms cubic-bezier(.22,1,.36,1)}
+  .t-stream-w.is-in{opacity:1;filter:blur(0)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
   /* quick-reply tags */
@@ -249,14 +263,17 @@
   .field.error{
     border-color:var(--danger);
     box-shadow:0 0 0 3px rgba(255,92,92,.25);
-    animation:fieldShake .3s ease;
+    animation:fieldShake 280ms linear;
   }
+  /* transitions.dev "Error state shake": four legs (80/60/80/60ms), each with its own ease-out */
   @keyframes fieldShake{
-    10%,90%{transform:translateX(-1px)}
-    20%,80%{transform:translateX(2px)}
-    30%,50%,70%{transform:translateX(-3px)}
-    40%,60%{transform:translateX(3px)}
+    0%{transform:translateX(0);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+    28.57%{transform:translateX(6px);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+    57.14%{transform:translateX(-6px);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+    78.57%{transform:translateX(4px);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+    100%{transform:translateX(0)}
   }
+
   .field textarea{
     display:block;width:100%;height:100%;resize:none;background:transparent;border:none;outline:none;
     padding:15px 64px 15px 15px;
@@ -281,7 +298,10 @@
 
   @media (prefers-reduced-motion:reduce){
     .row,.tags,.brief,.actions,.thinking{animation:none}
-    .thinking .wave i,.thinking .dot,.send.sending svg{animation:none}
+    .thinking .dot,.send.sending svg{animation:none}
+    .t-think-text{transition:none!important;transform:none!important;filter:none!important}
+    .t-think-text::before{display:none!important}
+    .t-stream-w{transition:none!important;filter:none!important;opacity:1!important}
     .progress .fill{transition:none}
   }
 
@@ -500,12 +520,34 @@ function messageRow(who){
   return {row,b};
 }
 
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function addAI(text){
   const {row,b}=messageRow("ai");
-  // Plain text only (AI output and visitor answers are never parsed as HTML); line breaks kept
-  text.split("\n").forEach((line,i)=>{ if(i) b.appendChild(document.createElement("br")); b.appendChild(document.createTextNode(line)); });
+  // Plain text only (AI output and visitor answers are never parsed as HTML); line breaks kept.
+  // Each word is its own span so the reply can stream in (transitions.dev "Streaming text").
+  const words=[];
+  text.split("\n").forEach((line,i)=>{
+    if(i) b.appendChild(document.createElement("br"));
+    line.split(/(\s+)/).forEach(part=>{
+      if(!part) return;
+      if(/^\s+$/.test(part)){ b.appendChild(document.createTextNode(part)); return; }
+      const w=document.createElement("span"); w.className="t-stream-w"; w.textContent=part;
+      b.appendChild(w); words.push(w);
+    });
+  });
   chat.appendChild(row); scrollDown();
   S.messages.push({role:"assistant", content:text});
+  if(REDUCED){ words.forEach(w=>w.classList.add("is-in")); return; }
+  // One word every 60ms; long replies are squeezed so the whole message lands within ~1.6s
+  // (scheduled up front from one start time, so slow timers can't stretch the whole reply)
+  const gap=Math.min(60, 1600/Math.max(1,words.length));
+  const t0=performance.now();
+  const tick=()=>{
+    const due=Math.min(words.length, Math.floor((performance.now()-t0)/gap)+1);
+    for(let n=0;n<due;n++) words[n].classList.add("is-in");
+    if(due<words.length) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 function addUser(text){
@@ -515,16 +557,41 @@ function addUser(text){
   S.messages.push({role:"user", content:text});
 }
 
-let typingRow=null;
+let typingRow=null, thinkTimer=0;
+const THINK_STATES={
+  en:["Thinking","Reading your answer","Shaping the next question"],
+  es:["Pensando","Leyendo tu respuesta","Preparando la siguiente pregunta"],
+};
 function showTyping(){
   hideTyping();
+  const states=THINK_STATES[S.lang==="es"?"es":"en"];
   typingRow=document.createElement("div"); typingRow.className="thinking";
   typingRow.setAttribute("role","status");
-  typingRow.innerHTML='<span class="dot"></span><span class="label"></span><span class="wave" aria-hidden="true"><i></i><i></i><i></i></span>';
-  typingRow.querySelector(".label").textContent = S.lang==="es" ? "Pensando" : "Thinking";
+  const box=document.createElement("span"); box.className="t-think";
+  const sizer=document.createElement("span"); sizer.className="t-think-sizer"; sizer.setAttribute("aria-hidden","true");
+  sizer.textContent=states.reduce((a,b)=>b.length>a.length?b:a);
+  let live=document.createElement("span"); live.className="t-think-text";
+  live.textContent=states[0]; live.dataset.text=states[0];
+  box.append(sizer, live);
+  const dot=document.createElement("span"); dot.className="dot";
+  typingRow.append(dot, box);
   chat.appendChild(typingRow); scrollDown();
+  if(REDUCED) return;
+  // Hold each state 2s, then swap: the old line rises out while the next one rises in
+  let i=0;
+  const cycle=()=>{ thinkTimer=setTimeout(()=>{
+    if(!box.isConnected) return;
+    i=(i+1)%states.length;
+    const leaving=live; leaving.classList.add("is-exit");
+    const next=document.createElement("span"); next.className="t-think-text is-enter-start";
+    next.textContent=states[i]; next.dataset.text=states[i];
+    box.appendChild(next); live=next;
+    setTimeout(()=>{ void next.offsetWidth; next.classList.remove("is-enter-start"); },50);
+    setTimeout(()=>{ leaving.remove(); cycle(); },200);
+  },2000); };
+  cycle();
 }
-function hideTyping(){ if(typingRow){typingRow.remove();typingRow=null;} }
+function hideTyping(){ clearTimeout(thinkTimer); if(typingRow){typingRow.remove();typingRow=null;} }
 
 let tagWrap=null;
 function showTags(type, multi=false, onPick){
